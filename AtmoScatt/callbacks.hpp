@@ -1,7 +1,11 @@
 ﻿#include <cstdio>
 
+#include "Logger.hpp"
+
 /* Error callback, outputs error to stl error stream */
 static void error_callback(int error, const char* description)
 {
-    fputs(description, stderr);
+    (void)std::fprintf(stderr, "Error: %d\n", error);
+    LOG_INFO(description);
+    // (void)fprintf(stderr, description);
 }
