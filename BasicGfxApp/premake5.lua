@@ -1,7 +1,8 @@
-project "AtmosphereScattering-Raster"
+project "BasicGFX-App"
     location "."
     kind "ConsoleApp"
     language "C++"
+    dependson {"CommonLib"}
     
     targetname "%{prj.name}_%{cfg.architecture}"
 
@@ -13,8 +14,7 @@ project "AtmosphereScattering-Raster"
 
         "./%{wks.location}/thirdparty/glad/glad.c",
         
-        proj_common_srcs,
-        proj_common_includes
+        shader_files,
 
     }
 
@@ -27,14 +27,36 @@ project "AtmosphereScattering-Raster"
         "./%{wks.location}/thirdparty/glm/",
         "./%{wks.location}/thirdparty/glfw/include/",
 
-        proj_common_includes
+        "./%{wks.location}/CommonLib/"
     }
 
     libdirs
     {
         "./%{wks.location}/thirdparty/glfw/build/src/%{cfg.buildcfg}",
+        "./%{wks.location}/bin/%{cfg.buildcfg}/%{cfg.system}/",
     }
     links
     {
         "glfw3.lib",
+        "CommonLib.lib",
     }
+
+    -- Windows system
+    filter "system:windows"
+        system "windows"
+        cppdialect "C++17"
+        systemversion "latest"
+
+    -- Linux system
+    filter "system:linux"
+        system "linux"
+        cppdialect "gnu++17"
+
+    -- Build configurations
+    filter "configurations:Debug"
+        defines "DEBUG"
+        symbols "On"
+
+    filter "configurations:Release"
+        defines "NDEBUG"
+        optimize "On"

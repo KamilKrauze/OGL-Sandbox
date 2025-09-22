@@ -9,11 +9,13 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include <glm/gtc/type_ptr.hpp>
 
-#include "callbacks.hpp"
-#include "Logger.hpp"
+#include "Callbacks/GLFWError.hpp"
 #include "Shader/ShaderBuilder.hpp"
 #include "Renderer/RendererConstants.hpp"
 #include "Renderer/RendererUtils.hpp"
+#include "Logger.hpp"
+#include "GfxBuffers/VertexBuffer.hpp"
+
 
 using Vec3List = std::vector<glm::vec3>;
 using Vec4List = std::vector<glm::vec4>;
@@ -57,32 +59,28 @@ static void init()
 
     program = ShaderBuilder::Load("../shaders/simple.vert","../shaders/simple.frag");
 
-    glGenBuffers(1, &vertexBufferObj);
-    glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObj);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * verts.size(), &verts[0], GL_STATIC_DRAW);
-    
-    glGenBuffers(1, &colourBufferObj);
-    glBindBuffer(GL_ARRAY_BUFFER, colourBufferObj);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec4) * colors.size(), &colors[0], GL_STATIC_DRAW);
+    Buffers::Vertex::CreateVertexBufferObj<glm::vec3>(vertexBufferObj, 1, verts, GL_STATIC_DRAW);
+    Buffers::Vertex::CreateVertexBufferObj<glm::vec4>(colourBufferObj, 1, colors, GL_STATIC_DRAW);
+
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
 }
 
 static void draw()
 {
     glClearColor(0.29f, 0.276f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
 
     glUseProgram(program);
+
+    Buffers::Vertex::EnableVertexAttribArray(vertexBufferObj,
+        Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.POSITION,
+        3, GL_FLOAT);
     
-    glBindBuffer(GL_ARRAY_BUFFER, vertexBufferObj);
-    glEnableVertexAttribArray(Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.POSITION);
-    glVertexAttribPointer(Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.POSITION, 3, GL_FLOAT, GL_FALSE, 0, 0);
-    
-    glBindBuffer(GL_ARRAY_BUFFER, colourBufferObj);
-    glEnableVertexAttribArray(Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.COLOUR);
-    glVertexAttribPointer(Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.COLOUR, 4, GL_FLOAT, GL_FALSE, 0, 0);
+    Buffers::Vertex::EnableVertexAttribArray(colourBufferObj,
+        Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.COLOUR,
+        4, GL_FLOAT);
     
     glFrontFace(GL_CW);
     glPolygonMode(GL_FRONT, GL_FILL);
@@ -96,7 +94,7 @@ int main()
         return EXIT_FAILURE;
     }
     
-    glfwWindowHint(GLFW_SAMPLES, 0);
+    // glfwWindowHint(GLFW_SAMPLES, 0);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
