@@ -32,13 +32,13 @@ project "BasicGFX-App"
 
     libdirs
     {
-        "./%{wks.location}/thirdparty/glfw/build/src/%{cfg.buildcfg}",
+        -- "./%{wks.location}/thirdparty/glfw/build/src/%{cfg.buildcfg}",
         "./%{wks.location}/bin/%{cfg.buildcfg}/%{cfg.system}/",
     }
     links
     {
-        "glfw3.lib",
-        "CommonLib.lib",
+        -- "glfw3",
+        "CommonLib",
     }
 
     -- Windows system
