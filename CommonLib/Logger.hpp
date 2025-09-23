@@ -1,8 +1,6 @@
 ﻿#ifndef LOGGER_HPP
 #define LOGGER_HPP
 
-#if defined(DEBUG)
-
 #include <cstdarg>
 #include <iostream>
 
@@ -54,6 +52,8 @@ inline void log(const char* format, ...)
     std::cout << "\033[0m\n";
 }
 
+#if defined(DEBUG)
+
 #define LOG_VERBOSE(format, ...)		log<LogLevel::Verbose>(format, ##__VA_ARGS__)
 #define LOG_INFO(format, ...)			log<LogLevel::Info>(format, ##__VA_ARGS__)
 #define LOG_WARNING(format, ...)		log<LogLevel::Warning>(format, ##__VA_ARGS__)
@@ -62,7 +62,7 @@ inline void log(const char* format, ...)
 
 #elif defined(NDEBUG)
 
-#define LOG_VERBOSE(format, ...)
+#define LOG_VERBOSE(format, ...)        log<LogLevel::Verbose>(format, ##__VA_ARGS__)
 #define LOG_INFO(format, ...)
 #define LOG_WARNING(format, ...)		
 #define LOG_ERROR(format, ...)			
