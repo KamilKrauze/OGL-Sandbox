@@ -14,3 +14,4 @@ workspace "OGL-Sandbox"
 
     include "./CommonLib/premake5.lua"
     include "./BasicGfxApp/premake5.lua"
+    include "./ComputeShaderApp/premake5.lua"

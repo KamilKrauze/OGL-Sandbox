@@ -12,7 +12,8 @@ namespace Constants::Renderer
                 uint32_t NORMAL;
                 uint32_t TANGENT;
                 uint32_t BINORMAL;
-                uint32_t UV;
+                uint32_t UV1;
+                uint32_t UV2;
                 uint32_t CUSTOM1;
                 uint32_t CUSTOM2;
             } AttribIndex;
@@ -20,11 +21,11 @@ namespace Constants::Renderer
 
         // constexpr constructor for compile-time initialization
         constexpr VertexConstants()
-            : AttribIndex{0, 1, 2, 3, 4, 5, 6, 7} {}
+            : AttribIndex{0, 1, 2, 3, 4, 5, 6, 7, 8} {}
     };
 
     // static storage, compile-time constant
-    static constexpr VertexConstants VERTEX_CONSTANTS{};
+    static VertexConstants VERTEX_CONSTANTS{};
 
 }
 

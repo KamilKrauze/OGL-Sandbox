@@ -13,6 +13,13 @@ namespace ShaderBuilder {
 	/* Build shaders from strings containing shader source code */
 	GLuint Build(GLenum eShaderType, const std::string& shaderText);
 
+	/**
+	 * Builds a compute shader
+	 * @param comp_shader_fp Shader program filepath.
+	 * @return Shader program reference.
+	 */
+	GLuint BuildCompute(const char *comp_shader_fp);
+
 	/* Load vertex and fragment shader and return the compiled program */
 	GLuint BuildShaderProgram(std::string vertShaderStr, std::string fragShaderStr);
 };

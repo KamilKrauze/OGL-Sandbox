@@ -96,6 +96,56 @@ GLuint ShaderBuilder::Build(GLenum eShaderType, const std::string& shaderText)
 	return shader;
 }
 
+GLuint ShaderBuilder::BuildCompute(const char* comp_shader_fp)
+{
+	unsigned int shaderID = 0;
+
+	std::string shaderStr = readFile(comp_shader_fp);
+	const char* shader_src = shaderStr.c_str();
+	shaderID = glCreateShader(GL_COMPUTE_SHADER);
+	glShaderSource(shaderID, 1 , &shader_src, NULL);
+	glCompileShader(shaderID);
+
+	GLint status;
+	glGetShaderiv(shaderID, GL_COMPILE_STATUS, &status);
+	if (status == GL_FALSE)
+	{
+		// Output the compile errors
+
+		GLint infoLogLength;
+		glGetShaderiv(shaderID, GL_INFO_LOG_LENGTH, &infoLogLength);
+
+		GLchar* strInfoLog = new GLchar[infoLogLength + 1];
+		glGetShaderInfoLog(shaderID, infoLogLength, NULL, strInfoLog);
+
+		constexpr const char* strShaderType = "COMPUTE";
+		LOG_ERROR("[Compiler/%s] - %s", strShaderType, strInfoLog);
+		
+		delete[] strInfoLog;
+
+		throw std::runtime_error("Shader compile exception");
+	}
+
+	GLuint programID = 0;
+	programID = glCreateProgram();
+	glAttachShader(programID, shaderID);
+	glLinkProgram(programID);
+
+	GLint success;
+	glGetShaderiv(shaderID, GL_COMPILE_STATUS, &success);
+	if(!success)
+	{
+		GLint infoLogLength;
+		glGetShaderiv(shaderID, GL_INFO_LOG_LENGTH, &infoLogLength);
+		GLchar* strInfoLog = new GLchar[infoLogLength + 1];
+		glGetShaderInfoLog(shaderID, infoLogLength, NULL, strInfoLog);
+		LOG_ERROR("[Linker/COMPUTE] - %s", strInfoLog);
+	}
+
+	glDeleteShader(shaderID);
+	return programID;
+}
+
 GLuint ShaderBuilder::BuildShaderProgram(std::string vertShaderStr, std::string fragShaderStr)
 {
 	GLuint vertShader, fragShader;
