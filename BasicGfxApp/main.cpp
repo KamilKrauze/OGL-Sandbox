@@ -29,7 +29,7 @@ GLuint program = 0;
 GLuint vao = 0;
 
 
-GLuint vertexBufferObj = 0;
+GLuint posBO = 0;
 GLuint vertAttrib = 0;
 Vec3List verts =
 {
@@ -82,7 +82,7 @@ static void init()
 
     program = ShaderBuilder::Load("../shaders/simple.vert","../shaders/simple.frag");
 
-    Buffers::Vertex::CreateVertexBufferObj<glm::vec3>(vertexBufferObj, 1, verts, GL_STATIC_DRAW);
+    Buffers::Vertex::CreateVertexBufferObj<glm::vec3>(posBO, 1, verts, GL_STATIC_DRAW);
     Buffers::Vertex::CreateVertexBufferObj<glm::vec4>(colourBufferObj, 1, colors, GL_STATIC_DRAW);
 
     ibo.GiveVAORef(vao);
@@ -116,7 +116,7 @@ static void draw()
     
     glUseProgram(program);
     
-    Buffers::Vertex::EnableVertexAttribArray(vertexBufferObj,
+    Buffers::Vertex::EnableVertexAttribArray(posBO,
         Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.POSITION,
         3, GL_FLOAT);
     
