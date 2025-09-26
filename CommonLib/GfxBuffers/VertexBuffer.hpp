@@ -21,6 +21,13 @@ namespace Buffers::Vertex
         glEnableVertexAttribArray(attribIndex);
         glVertexAttribPointer(attribIndex, matrixSize, dataType, bNormaliseData, 0,0);
     }
+
+    inline void EnableVertexAttribArrayDSA(GLuint& vao, const uint32_t attribIndex, const int components, const GLenum dataType, const bool bNormaliseData = false, const uint32_t offset = 0)
+    {
+        glEnableVertexArrayAttrib(vao, attribIndex);
+        glVertexArrayAttribFormat(vao, attribIndex, components, dataType, bNormaliseData, offset);
+        glVertexArrayAttribBinding(vao, attribIndex, 0);
+    }
 }
 
 #endif //!VERTEX_BUFFER_HPP 

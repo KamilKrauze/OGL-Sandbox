@@ -142,7 +142,7 @@ static void draw()
         3, GL_FLOAT);
     
     Buffers::Vertex::EnableVertexAttribArray(uvBO,
-        Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.UV1,
+        Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.UV0,
         2, GL_FLOAT);
     
     glFrontFace(GL_CW);

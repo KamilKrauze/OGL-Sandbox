@@ -22,6 +22,8 @@ namespace Buffers
          */
         void GiveVAORef(const GLuint& vao_ref);
         const GLuint& GetVAO();
+
+        GLuint& GetID() {return m_indexBO;}
     
     public:
         /**

@@ -22,6 +22,7 @@
 #include "Logger.hpp"
 #include "GfxBuffers/IndexBufferObject.hpp"
 #include "GfxBuffers/VertexBuffer.hpp"
+#include "Renderer/InstancedMesh.h"
 #include "Renderer/RenderList.h"
 
 using Vec2List = std::vector<glm::vec2>;
@@ -31,19 +32,15 @@ using Vec4List = std::vector<glm::vec4>;
 static GLFWwindow* window;
 
 GLuint program = 0;
-GLuint vao = 0;
 
-
-GLuint posBO = 0;
-Vec4List vertPos =
+Vec3List vertPos =
 {
-    {-0.5,0.5,0,1},
-    {0.5,0.5,0,1},  
-    {0.5,-0.5,0,1},
-    {-0.5,-0.5,0,1},
+    {-0.5,0.5,0},
+    {0.5,0.5,0},  
+    {0.5,-0.5,0},
+    {-0.5,-0.5,0},
 };
 
-GLuint colourBO = 0;
 Vec4List colours =
 {
     {1,0,0,0},
@@ -52,14 +49,12 @@ Vec4List colours =
     {0,0,0,1},
 };
 
-Buffers::IndexBufferObject ibo;
-std::array<GLuint,6> indices
+std::vector<GLuint> indices
 {
     0,1,2,
     2,3,0
 };
 
-GLuint uvBO = 0;
 Vec2List uv_coords =
 {
     {0,0},
@@ -68,8 +63,10 @@ Vec2List uv_coords =
     {0,1},
 };
 
-unsigned int texture0;
-unsigned int texture1;
+// unsigned int texture0;
+// unsigned int texture1;
+
+InstancedMesh mesh{};
 
 static void CreateTextureUnit(int binding, const char* fp, GLuint& textureObj)
 {
@@ -106,25 +103,17 @@ static void CreateTextureUnit(int binding, const char* fp, GLuint& textureObj)
 
 static void init()
 {
-    glGenVertexArrays(1, &vao);
-    glBindVertexArray(vao);
+    mesh.vertices = vertPos;
+    mesh.colours = colours;
+    mesh.texCoords = uv_coords;
+    mesh.indices = indices;
+    mesh.Build();
 
     program = ShaderBuilder::Load("../shaders/texturing_example.vert","../shaders/texturing_example.frag");
-    
-    Buffers::Vertex::CreateVertexBufferObj<glm::vec4>(posBO, 1, vertPos, GL_STATIC_DRAW);
-    Buffers::Vertex::CreateVertexBufferObj<glm::vec4>(colourBO, 1, colours, GL_STATIC_DRAW);
-    Buffers::Vertex::CreateVertexBufferObj<glm::vec2>(uvBO, 1, uv_coords, GL_STATIC_DRAW);
-    
-    ibo.GiveVAORef(vao);
-    ibo.CreateBuffer(sizeof(GLuint) * indices.size(), &indices[0], GL_STATIC_DRAW);
-    ibo.Bind();
     
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
-    
-    CreateTextureUnit(0, "../textures/rocks_ground_diffuse.png", texture0);
-    CreateTextureUnit(1, "../textures/forrest_ground_diffuse.png", texture1);
 }
 
 static double previousTime = 0;
@@ -136,25 +125,10 @@ static void draw()
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     glUseProgram(program);
-
-    glBindTextureUnit(0, texture0);
-    glBindTextureUnit(1, texture1);
-    
-    Buffers::Vertex::EnableVertexAttribArray(posBO,
-        Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.POSITION,
-        4, GL_FLOAT);
-
-    Buffers::Vertex::EnableVertexAttribArray(posBO,
-        Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.COLOUR,
-        4, GL_FLOAT);
-    
-    Buffers::Vertex::EnableVertexAttribArray(uvBO,
-        Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.UV0,
-        2, GL_FLOAT);
     
     glFrontFace(GL_CW);
     glPolygonMode(GL_FRONT, GL_FILL);
-    glDrawElementsInstanced(GL_TRIANGLES, indices.size(), GL_UNSIGNED_INT, nullptr, 1);
+    mesh.Dispatch();
 }
 
 int main()
@@ -168,9 +142,10 @@ int main()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
     glfwSetErrorCallback(error_callback);
     
-    window = glfwCreateWindow(800, 800, "OpenGL Basic Texturing Example", NULL, NULL);
+    window = glfwCreateWindow(800, 800, "OpenGL DSA Drawing Example", NULL, NULL);
     if (!window)
     {
         glfwTerminate();
@@ -190,7 +165,7 @@ int main()
     
     init();
     bool shouldQuit = false;
-    
+
     previousTime = glfwGetTime();
     while (!shouldQuit)
     {
@@ -201,20 +176,14 @@ int main()
             continue;
         }
         draw();
-        
+    
         glfwSwapBuffers(window);
-        
+    
         currentTime = glfwGetTime();
         deltaTime = currentTime - previousTime;
         previousTime = currentTime;
     }
-    ibo.Delete();
     
-    glDeleteBuffers(1, &posBO);
-    glDeleteBuffers(1, &colourBO);
-    glDeleteVertexArrays(1, &vao);
-    glDeleteTextures(1, &texture0);
-    glDeleteTextures(1, &texture1);
     glDeleteProgram(program);
     
     glfwDestroyWindow(window);
