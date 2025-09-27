@@ -41,12 +41,12 @@ Camera camera;
 
 static void init()
 {
-    camera = Camera(Perspective, 16.0f/9.0f, 45.0f, 0.001f, 1000.0f, glm::vec3(0, 0, 4), glm::vec3(0, 0, -1));
+    camera = Camera(Perspective, 1, 45.0f, 0.001f, 1000.0f, glm::vec3(0, 0, 4), glm::vec3(0, 0, -1));
     WindowResizeEvent.Bind(&camera, &Camera::UpdateOnWindowResize);
     
     VertexData data1{};
     VertexData data2{};
-    MeshLoaders::Static::ImportOBJ(data1, std::string_view("../meshes/Monkey.obj"));
+    MeshLoaders::Static::ImportOBJ(data1, std::string_view("../meshes/SmoothMonkey.obj"));
     MeshLoaders::Static::ImportOBJ(data2, std::string_view("../meshes/Monkey.obj"));
     mesh1 = std::move(data1);
     mesh2 = std::move(data2);
@@ -55,9 +55,9 @@ static void init()
     mesh1.Build();
     mesh2.Build();
     
-    // glEnable(GL_DEPTH_TEST);
-    // glEnable(GL_CULL_FACE);
-    // glCullFace(GL_BACK);
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
 }
 
 static double previousTime = 0;
@@ -79,10 +79,14 @@ static void draw()
     transformStack.push(glm::mat4(1.0));
     transformStack.push(transformStack.top());
     {
-        transformStack.top() = glm::translate(transformStack.top(), glm::vec3(-1.0f, 0.0f, 0.0f));
-        transformStack.top() = glm::rotate(transformStack.top(), -glm::radians(-90.0f), glm::vec3(0, 1, 0));
+        transformStack.top() = glm::translate(transformStack.top(), glm::vec3(-0.75f, 0.0f, 0.0f));
+        transformStack.top() = glm::rotate(transformStack.top(), -glm::radians((float)currentTime*2), glm::vec3(1, 0, 0));
+        transformStack.top() = glm::rotate(transformStack.top(), -glm::radians(-(float)currentTime*50.0f), glm::vec3(0, 1, 0));
+        transformStack.top() = glm::rotate(transformStack.top(), -glm::radians((float)currentTime*5.0f), glm::vec3(0, 0, 1));
         transformStack.top() = glm::scale(transformStack.top(), glm::vec3(1));
         glUniformMatrix4fv(glGetUniformLocation(program, "model"), 1, GL_FALSE, &transformStack.top()[0][0]);
+        glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(camera.view * transformStack.top())));
+        glUniformMatrix3fv(glGetUniformLocation(program, "normal_matrix"), 1, GL_FALSE, value_ptr(normal_matrix));
         mesh1.Dispatch();
     }
     transformStack.pop();
@@ -93,6 +97,8 @@ static void draw()
         transformStack.top() = glm::rotate(transformStack.top(), -glm::radians((float)currentTime*10.0f), glm::vec3(0, 1, 0));
         transformStack.top() = glm::scale(transformStack.top(), glm::vec3(1));
         glUniformMatrix4fv(glGetUniformLocation(program, "model"), 1, GL_FALSE, &transformStack.top()[0][0]);
+        glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(camera.view * transformStack.top())));
+        glUniformMatrix3fv(glGetUniformLocation(program, "normal_matrix"), 1, GL_FALSE, value_ptr(normal_matrix));
         mesh2.Dispatch();
     }
     transformStack.pop();
@@ -109,7 +115,7 @@ int main()
         return EXIT_FAILURE;
     }
     
-    glfwWindowHint(GLFW_SAMPLES, 0);
+    glfwWindowHint(GLFW_SAMPLES, 8);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);

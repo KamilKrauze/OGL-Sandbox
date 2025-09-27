@@ -8,12 +8,24 @@ uniform mat4 projection;
 uniform mat4 view;
 uniform mat4 model;
 
-out vec3 FRAG_NORMAL;
+uniform mat3 normal_matrix;
+
 out vec4 FRAG_COLOUR;
+out vec3 FRAG_NORMAL;
+
+out vec3 PIXEL_POSITION;
+out vec3 LIGHT_POS;
+
+const mat4 modelView_matrix = view * model;
 
 void main()
 {
-    gl_Position = projection * view * model * vec4(VERT_POS, 1);
+    const vec4 POSITION_H = vec4(VERT_POS, 1);
     FRAG_COLOUR = VERT_COLOUR;
-    FRAG_NORMAL = VERT_NORMAL;
+    FRAG_NORMAL = normal_matrix * VERT_NORMAL;
+    
+    PIXEL_POSITION = (modelView_matrix * POSITION_H).xyz;
+    LIGHT_POS = (1,0,2) - VERT_POS;
+    
+    gl_Position = projection * view * model * POSITION_H;
 }

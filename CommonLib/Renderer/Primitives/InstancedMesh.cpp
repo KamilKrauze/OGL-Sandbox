@@ -47,6 +47,7 @@ void InstancedMesh::Build()
         glVertexArrayElementBuffer(m_VAO, m_IBO);
     }
     glBindVertexArray(m_VAO);
+    glBindVertexArray(0);
 }
 
 void InstancedMesh::Bind()
@@ -56,8 +57,13 @@ void InstancedMesh::Bind()
 
 void InstancedMesh::Dispatch()
 {
+    glBindVertexArray(m_VAO);
+
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-    glDrawElements(GL_TRIANGLES, (GLsizei)indices.size(), GL_UNSIGNED_INT, nullptr);
+    glDrawElementsInstanced(GL_TRIANGLES, (GLsizei)indices.size(), GL_UNSIGNED_INT, nullptr, 1);
+
+    glBindVertexArray(0);
+
 }
 
 void InstancedMesh::Unbind()
