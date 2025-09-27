@@ -2,42 +2,69 @@
 
 #include "RendererConstants.hpp"
 
+InstancedMesh& InstancedMesh::operator=(VertexData&& data)
+{
+    vertices   = std::move(data.vertices);
+    indices    = std::move(data.indices);
+    colours    = std::move(data.colours);
+    texCoords  = std::move(data.texCoords);
+    lightMapUV = std::move(data.lightMapUV);
+    normals    = std::move(data.normals);
+    tangents   = std::move(data.tangents);
+    binormals  = std::move(data.binormals);
+
+    return *this;
+}
+
 void InstancedMesh::Build()
 {
     glCreateVertexArrays(1, &m_VAO);
-    glBindVertexArray(m_VAO);
-    // Vertex position
+    int bindingIDX = 0;
     if (vertices.size() > 0)
     {
+        const auto attribIndex = Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.POSITION;
         glCreateBuffers(1, &m_VBO);
-        glNamedBufferStorage(m_VBO, vertices.size() * sizeof(glm::vec3), vertices.data(), drawUsage);
-
-        glVertexArrayVertexBuffer(m_VAO, 0, m_VBO, 0, sizeof(glm::vec3));
-
-        glEnableVertexArrayAttrib(m_VAO, Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.POSITION);
-        glVertexArrayAttribFormat(m_VAO, Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.POSITION,
-            3, GL_FLOAT, GL_FALSE, 0);
-        glVertexArrayAttribBinding(m_VAO, Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.POSITION, 0);
+        glNamedBufferStorage(m_VBO, vertices.size() * sizeof(glm::vec3), vertices.data(), GL_MAP_READ_BIT);    
+        glEnableVertexArrayAttrib(m_VAO, attribIndex);
+        glVertexArrayAttribFormat(m_VAO, attribIndex, 3, GL_FLOAT, GL_FALSE, 0);
+        glVertexArrayAttribBinding(m_VAO, attribIndex, bindingIDX);
+        glVertexArrayVertexBuffer(m_VAO, bindingIDX, m_VBO, 0, sizeof(glm::vec3));
+        bindingIDX++;
     }
+    
     if (colours.size() > 0)
     {
+        const auto attribIndex = Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.COLOUR;
         glCreateBuffers(1, &m_CBO);
-        glNamedBufferStorage(m_CBO, colours.size() * sizeof(glm::vec4), colours.data(), drawUsage);
-
-        // bind colour buffer to binding index 1
-        glVertexArrayVertexBuffer(m_VAO, 1, m_CBO, 0, sizeof(glm::vec4));
-
-        glEnableVertexArrayAttrib(m_VAO, Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.COLOUR);
-        glVertexArrayAttribFormat(m_VAO, Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.COLOUR,
-            4, GL_FLOAT, GL_FALSE, 0);
-        glVertexArrayAttribBinding(m_VAO, Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.COLOUR, 1);
+        glNamedBufferStorage(m_CBO, colours.size() * sizeof(glm::vec4), colours.data(), GL_MAP_READ_BIT);    
+        glEnableVertexArrayAttrib(m_VAO, attribIndex);
+        glVertexArrayAttribFormat(m_VAO, attribIndex, 4, GL_FLOAT, GL_FALSE, 0);
+        glVertexArrayAttribBinding(m_VAO, attribIndex, bindingIDX);
+        glVertexArrayVertexBuffer(m_VAO, bindingIDX, m_CBO, 0, sizeof(glm::vec4));
+        bindingIDX++;
     }
+
+    if (normals.size() > 0)
+    {
+        const auto attribIndex = Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.NORMAL;
+        glCreateBuffers(1, &m_NBO);
+        glNamedBufferStorage(m_NBO, normals.size() * sizeof(glm::vec3), normals.data(), GL_MAP_READ_BIT);    
+        glEnableVertexArrayAttrib(m_VAO, attribIndex);
+        glVertexArrayAttribFormat(m_VAO, attribIndex, 3, GL_FLOAT, GL_FALSE, 0);
+        glVertexArrayAttribBinding(m_VAO, attribIndex, bindingIDX);
+        glVertexArrayVertexBuffer(m_VAO, bindingIDX, m_NBO, 0, sizeof(glm::vec3));
+        bindingIDX++;
+    }
+
     if (indices.size() > 0)
     {
         glCreateBuffers(1, &m_IBO);
-        glNamedBufferData(m_IBO, indices.size() * sizeof(GLuint), &indices[0], drawUsage);
+        glNamedBufferStorage(m_IBO, indices.size() * sizeof(GLuint), indices.data(), GL_MAP_READ_BIT);    
         glVertexArrayElementBuffer(m_VAO, m_IBO);
     }
+    glBindVertexArray(m_VAO);
+
+    
 }
 
 void InstancedMesh::Bind()
@@ -47,9 +74,8 @@ void InstancedMesh::Bind()
 
 void InstancedMesh::Dispatch()
 {
-    glBindVertexArray(m_VAO);
-    glVertexArrayElementBuffer(m_VAO, m_IBO);
-    glDrawElementsInstanced(GL_TRIANGLES, (GLsizei)indices.size(), GL_UNSIGNED_INT, nullptr, 1);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+    glDrawElements(GL_TRIANGLES, (GLsizei)indices.size(), GL_UNSIGNED_INT, nullptr);
 }
 
 void InstancedMesh::Unbind()

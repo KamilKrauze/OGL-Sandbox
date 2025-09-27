@@ -1,4 +1,5 @@
-﻿#pragma once
+﻿#ifndef INST_MESH_H
+#define INST_MESH_H
 
 #include "IRenderable.h"
 
@@ -6,18 +7,24 @@
 
 #include <glm/glm.hpp>
 
-#include "GfxBuffers/IndexBufferObject.hpp"
+#include "VertexData.h"
 
-class InstancedMesh : IRenderable
+/**
+ * Mesh objects that are instantiated.
+ */
+class InstancedMesh : public IRenderable
 {
 public:
     InstancedMesh() = default;
     ~InstancedMesh() override = default;
     InstancedMesh(InstancedMesh&& other) noexcept = default;
 
-public:
-    
-
+    /**
+     * Helps move vertex data generated/loaded into the mesh object with ease.
+     * @param data Vertex data
+     * @return Mesh instance self ref.
+     */
+    InstancedMesh& operator=(VertexData&& data);
     
 // Graphics API calls
 public:
@@ -27,8 +34,9 @@ public:
     void Unbind() override;
     void Delete() override;
 
+// Raw vertex data 
 public:
-    GLenum drawUsage = GL_STATIC_DRAW;
+    GLenum bufferUsage = GL_MAP_READ_BIT;
     std::vector<glm::vec3>  vertices;
     std::vector<GLuint>     indices;
     std::vector<glm::vec4>  colours;
@@ -38,3 +46,5 @@ public:
     std::vector<glm::vec3>  tangents;
     std::vector<glm::vec3>  binormals;
 };
+
+#endif

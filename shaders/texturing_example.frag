@@ -25,5 +25,4 @@ void main()
     const vec3 mixed = mix(tex0Colour, tex1Colour, saturate(alpha));
     
     fragColour = vec4(mixed, 1);
-    fragColour = vec4(1,1,1,1);
 }

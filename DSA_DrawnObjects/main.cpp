@@ -22,6 +22,7 @@
 #include "Logger.hpp"
 #include "GfxBuffers/IndexBufferObject.hpp"
 #include "GfxBuffers/VertexBuffer.hpp"
+#include "Loader/MeshLoaders.hpp"
 #include "Renderer/InstancedMesh.h"
 #include "Renderer/RenderList.h"
 
@@ -33,6 +34,8 @@ static GLFWwindow* window;
 
 GLuint program = 0;
 
+GLuint vao = 0;
+GLuint vbo = 0;
 Vec3List vertPos =
 {
     {-0.5,0.5,0},
@@ -41,18 +44,20 @@ Vec3List vertPos =
     {-0.5,-0.5,0},
 };
 
+GLuint cbo = 0;
 Vec4List colours =
 {
-    {1,0,0,0},
-    {0,1,0,0},  
-    {0,0,1,0},
-    {0,0,0,1},
+    {1,0,0,1},
+    {0,1,0,1},  
+    {0,1,1,1},
+    {1,1,0,1},
 };
 
+GLuint ibo = 0;
 std::vector<GLuint> indices
 {
     0,1,2,
-    2,3,0
+    2,3,0,
 };
 
 Vec2List uv_coords =
@@ -103,17 +108,19 @@ static void CreateTextureUnit(int binding, const char* fp, GLuint& textureObj)
 
 static void init()
 {
-    mesh.vertices = vertPos;
-    mesh.colours = colours;
-    mesh.texCoords = uv_coords;
-    mesh.indices = indices;
-    mesh.Build();
+    VertexData data{};
+    MeshLoaders::Static::ImportOBJ(data, std::string_view("../meshes/Monkey.obj"));
+    mesh = std::move(data);
+    program = ShaderBuilder::Load("../shaders/mesh_dsa_draw.vert","../shaders/mesh_dsa_draw.frag");
 
-    program = ShaderBuilder::Load("../shaders/texturing_example.vert","../shaders/texturing_example.frag");
+    // mesh.vertices = vertPos;
+    // mesh.indices = indices;
+    // mesh.colours = colours;
+    mesh.Build();
     
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
+    // glEnable(GL_CULL_FACE);
+    // glCullFace(GL_BACK);
 }
 
 static double previousTime = 0;
@@ -124,11 +131,12 @@ static void draw()
     glClearColor(0.29f, 0.276f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+
     glUseProgram(program);
-    
-    glFrontFace(GL_CW);
-    glPolygonMode(GL_FRONT, GL_FILL);
+    // mesh.Bind();
+    // glFrontFace(GL_CCW);
     mesh.Dispatch();
+    // mesh.Unbind();
 }
 
 int main()
@@ -138,7 +146,7 @@ int main()
         return EXIT_FAILURE;
     }
     
-    glfwWindowHint(GLFW_SAMPLES, 8);
+    glfwWindowHint(GLFW_SAMPLES, 0);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
