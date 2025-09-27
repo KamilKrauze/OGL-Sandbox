@@ -1,6 +1,6 @@
-﻿#include "InstancedMesh.h"
-
-#include "RendererConstants.hpp"
+﻿#include "Renderer/Primitives/InstancedMesh.h"
+#include "Renderer/Primitives/MeshPrimitiveUtils.h"
+#include "Renderer/RendererConstants.hpp"
 
 InstancedMesh& InstancedMesh::operator=(VertexData&& data)
 {
@@ -19,47 +19,31 @@ InstancedMesh& InstancedMesh::operator=(VertexData&& data)
 void InstancedMesh::Build()
 {
     glCreateVertexArrays(1, &m_VAO);
-    int bindingIDX = 0;
     if (vertices.size() > 0)
     {
         const auto attribIndex = Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.POSITION;
-        glCreateBuffers(1, &m_VBO);
-        glNamedBufferStorage(m_VBO, vertices.size() * sizeof(glm::vec3), vertices.data(), GL_MAP_READ_BIT);    
-        glEnableVertexArrayAttrib(m_VAO, attribIndex);
-        glVertexArrayAttribFormat(m_VAO, attribIndex, 3, GL_FLOAT, GL_FALSE, 0);
-        glVertexArrayAttribBinding(m_VAO, attribIndex, bindingIDX);
-        glVertexArrayVertexBuffer(m_VAO, bindingIDX, m_VBO, 0, sizeof(glm::vec3));
-        bindingIDX++;
+        MeshPrimitiveUtils::CreateBufferObject(m_VBO, vertices.data(), MeshPrimitiveUtils::full_byte_size(vertices), bufferUsage);
+        MeshPrimitiveUtils::CreateVertexAttrib(m_VAO, m_VBO, attribIndex, 3, MeshPrimitiveUtils::element_byte_size(vertices));
     }
     
     if (colours.size() > 0)
     {
         const auto attribIndex = Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.COLOUR;
-        glCreateBuffers(1, &m_CBO);
-        glNamedBufferStorage(m_CBO, colours.size() * sizeof(glm::vec4), colours.data(), GL_MAP_READ_BIT);    
-        glEnableVertexArrayAttrib(m_VAO, attribIndex);
-        glVertexArrayAttribFormat(m_VAO, attribIndex, 4, GL_FLOAT, GL_FALSE, 0);
-        glVertexArrayAttribBinding(m_VAO, attribIndex, bindingIDX);
-        glVertexArrayVertexBuffer(m_VAO, bindingIDX, m_CBO, 0, sizeof(glm::vec4));
-        bindingIDX++;
+        MeshPrimitiveUtils::CreateBufferObject(m_CBO, colours.data(), MeshPrimitiveUtils::full_byte_size(colours), bufferUsage);
+        MeshPrimitiveUtils::CreateVertexAttrib(m_VAO, m_CBO, attribIndex, 4, MeshPrimitiveUtils::element_byte_size(colours));
     }
 
     if (normals.size() > 0)
     {
         const auto attribIndex = Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.NORMAL;
-        glCreateBuffers(1, &m_NBO);
-        glNamedBufferStorage(m_NBO, normals.size() * sizeof(glm::vec3), normals.data(), GL_MAP_READ_BIT);    
-        glEnableVertexArrayAttrib(m_VAO, attribIndex);
-        glVertexArrayAttribFormat(m_VAO, attribIndex, 3, GL_FLOAT, GL_FALSE, 0);
-        glVertexArrayAttribBinding(m_VAO, attribIndex, bindingIDX);
-        glVertexArrayVertexBuffer(m_VAO, bindingIDX, m_NBO, 0, sizeof(glm::vec3));
-        bindingIDX++;
+        MeshPrimitiveUtils::CreateBufferObject(m_NBO, normals.data(), MeshPrimitiveUtils::full_byte_size(normals), bufferUsage);
+        MeshPrimitiveUtils::CreateVertexAttrib(m_VAO, m_NBO, attribIndex, 3, MeshPrimitiveUtils::element_byte_size(normals));
     }
 
     if (indices.size() > 0)
     {
         glCreateBuffers(1, &m_IBO);
-        glNamedBufferStorage(m_IBO, indices.size() * sizeof(GLuint), indices.data(), GL_MAP_READ_BIT);    
+        glNamedBufferStorage(m_IBO, indices.size() * sizeof(GLuint), indices.data(), bufferUsage);    
         glVertexArrayElementBuffer(m_VAO, m_IBO);
     }
     glBindVertexArray(m_VAO);

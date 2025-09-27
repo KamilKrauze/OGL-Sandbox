@@ -11,7 +11,7 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include <glm/gtc/type_ptr.hpp>
 
-#include "Callbacks/GLFWError.hpp"
+#include "Callbacks/GLFWCallbacks.hpp"
 #include "Shader/ShaderBuilder.hpp"
 #include "Renderer/RendererConstants.hpp"
 #include "Renderer/RendererUtils.hpp"

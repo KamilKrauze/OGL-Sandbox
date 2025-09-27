@@ -94,11 +94,13 @@ namespace MeshLoaders::Static
         }
 
         // Assign default color
-        vertInfo.colours.assign(vertInfo.vertices.size(), glm::vec4(1.0f, 0.0f, 0.0f, 1.0f));
+        vertInfo.colours.assign(vertInfo.vertices.size(), glm::vec4(1.0f));
 
         // Clear temp data
         tmp_positions.clear();
         tmp_normals.clear();
         tmp_uvs.clear();
+
+        std::cout << "Finished loading: " << filepath << std::endl;
     }
 }

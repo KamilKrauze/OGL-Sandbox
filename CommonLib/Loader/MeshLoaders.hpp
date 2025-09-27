@@ -2,7 +2,8 @@
 #define MESH_LOADERS_HPP
 #include <string_view>
 
-#include "Renderer/VertexData.h"
+#include "Renderer/Primitives/VertexData.h"
+
 
 namespace MeshLoaders
 {

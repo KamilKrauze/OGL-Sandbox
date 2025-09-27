@@ -1,13 +1,13 @@
 ﻿#ifndef INST_MESH_H
 #define INST_MESH_H
 
-#include "IRenderable.h"
+#include "Renderer/IRenderable.h"
 
 #include <vector>
 
 #include <glm/glm.hpp>
 
-#include "VertexData.h"
+#include "Renderer/Primitives/VertexData.h"
 
 /**
  * Mesh objects that are instantiated.

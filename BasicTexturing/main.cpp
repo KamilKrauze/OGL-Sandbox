@@ -15,7 +15,7 @@
 #define STBI_FAILURE_USERMSG
 #include "stb/stb_image.h"
 
-#include "Callbacks/GLFWError.hpp"
+#include "Callbacks/GLFWCallbacks.hpp"
 #include "Shader/ShaderBuilder.hpp"
 #include "Renderer/RendererConstants.hpp"
 #include "Renderer/RendererUtils.hpp"

@@ -15,15 +15,13 @@
 #define STBI_FAILURE_USERMSG
 #include "stb/stb_image.h"
 
-#include "Callbacks/GLFWError.hpp"
+#include "Callbacks/GLFWCallbacks.hpp"
 #include "Shader/ShaderBuilder.hpp"
 #include "Renderer/RendererConstants.hpp"
 #include "Renderer/RendererUtils.hpp"
 #include "Logger.hpp"
-#include "GfxBuffers/IndexBufferObject.hpp"
-#include "GfxBuffers/VertexBuffer.hpp"
 #include "Loader/MeshLoaders.hpp"
-#include "Renderer/InstancedMesh.h"
+#include "Renderer/Primitives/InstancedMesh.h"
 #include "Renderer/RenderList.h"
 
 using Vec2List = std::vector<glm::vec2>;
@@ -34,77 +32,7 @@ static GLFWwindow* window;
 
 GLuint program = 0;
 
-GLuint vao = 0;
-GLuint vbo = 0;
-Vec3List vertPos =
-{
-    {-0.5,0.5,0},
-    {0.5,0.5,0},  
-    {0.5,-0.5,0},
-    {-0.5,-0.5,0},
-};
-
-GLuint cbo = 0;
-Vec4List colours =
-{
-    {1,0,0,1},
-    {0,1,0,1},  
-    {0,1,1,1},
-    {1,1,0,1},
-};
-
-GLuint ibo = 0;
-std::vector<GLuint> indices
-{
-    0,1,2,
-    2,3,0,
-};
-
-Vec2List uv_coords =
-{
-    {0,0},
-    {1,0},
-    {1,1},
-    {0,1},
-};
-
-// unsigned int texture0;
-// unsigned int texture1;
-
 InstancedMesh mesh{};
-
-static void CreateTextureUnit(int binding, const char* fp, GLuint& textureObj)
-{
-    stbi_set_flip_vertically_on_load(true);
-
-    int width, height, channels;
-    unsigned char *data = stbi_load(fp, &width, &height, &channels, 3);
-    if (data)
-    {
-        LOG_INFO("{%d, %d} & Channels: %d", width, height, channels);
-        glCreateTextures(GL_TEXTURE_2D, 1, &textureObj);
-
-        glTextureStorage2D(textureObj, 1, GL_RGBA16, width, height);
-        
-        glTextureSubImage2D(textureObj, 0, 0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, data);
-        glGenerateTextureMipmap(textureObj);
-        
-        glTextureParameteri(textureObj, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTextureParameteri(textureObj, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTextureParameteri(textureObj, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTextureParameteri(textureObj, GL_TEXTURE_MAG_FILTER, GL_LINEAR_MIPMAP_NEAREST);
-
-        glBindTextureUnit(binding, textureObj);
-
-        stbi_image_free(data);
-    }
-    else
-    {
-        LOG_ERROR("Failed to load texture image");
-        stbi_image_free(data);
-    }
-    glBindTextureUnit(binding,0);
-}
 
 static void init()
 {
@@ -112,10 +40,7 @@ static void init()
     MeshLoaders::Static::ImportOBJ(data, std::string_view("../meshes/Monkey.obj"));
     mesh = std::move(data);
     program = ShaderBuilder::Load("../shaders/mesh_dsa_draw.vert","../shaders/mesh_dsa_draw.frag");
-
-    // mesh.vertices = vertPos;
-    // mesh.indices = indices;
-    // mesh.colours = colours;
+    
     mesh.Build();
     
     glEnable(GL_DEPTH_TEST);
@@ -168,6 +93,8 @@ int main()
         return EXIT_FAILURE;
     }
     
+    glfwSetFramebufferSizeCallback(window, window_resize);
+    
     RendererUtils::PrintRendererSpecInfo();
     RendererUtils::PrintGfxDeviceInfo();
     
@@ -191,7 +118,8 @@ int main()
         deltaTime = currentTime - previousTime;
         previousTime = currentTime;
     }
-    
+
+    mesh.Delete();
     glDeleteProgram(program);
     
     glfwDestroyWindow(window);
