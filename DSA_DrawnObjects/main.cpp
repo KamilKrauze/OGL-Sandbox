@@ -13,6 +13,8 @@
 
 #define STB_IMAGE_IMPLEMENTATION
 #define STBI_FAILURE_USERMSG
+#include <stack>
+
 #include "stb/stb_image.h"
 
 #include "Callbacks/GLFWCallbacks.hpp"
@@ -21,6 +23,7 @@
 #include "Renderer/RendererUtils.hpp"
 #include "Logger.hpp"
 #include "Loader/MeshLoaders.hpp"
+#include "Renderer/Camera.h"
 #include "Renderer/Primitives/InstancedMesh.h"
 #include "Renderer/RenderList.h"
 
@@ -32,36 +35,71 @@ static GLFWwindow* window;
 
 GLuint program = 0;
 
-InstancedMesh mesh{};
+InstancedMesh mesh1{};
+InstancedMesh mesh2{};
+Camera camera;
 
 static void init()
 {
-    VertexData data{};
-    MeshLoaders::Static::ImportOBJ(data, std::string_view("../meshes/Monkey.obj"));
-    mesh = std::move(data);
+    camera = Camera(Perspective, 16.0f/9.0f, 45.0f, 0.001f, 1000.0f, glm::vec3(0, 0, 4), glm::vec3(0, 0, -1));
+    WindowResizeEvent.Bind(&camera, &Camera::UpdateOnWindowResize);
+    
+    VertexData data1{};
+    VertexData data2{};
+    MeshLoaders::Static::ImportOBJ(data1, std::string_view("../meshes/Monkey.obj"));
+    MeshLoaders::Static::ImportOBJ(data2, std::string_view("../meshes/Monkey.obj"));
+    mesh1 = std::move(data1);
+    mesh2 = std::move(data2);
     program = ShaderBuilder::Load("../shaders/mesh_dsa_draw.vert","../shaders/mesh_dsa_draw.frag");
     
-    mesh.Build();
+    mesh1.Build();
+    mesh2.Build();
     
-    glEnable(GL_DEPTH_TEST);
-    glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
+    // glEnable(GL_DEPTH_TEST);
+    // glEnable(GL_CULL_FACE);
+    // glCullFace(GL_BACK);
 }
 
 static double previousTime = 0;
 static double currentTime = 0;
 static double deltaTime = 0;
+std::stack<glm::mat4> transformStack;
+
 static void draw()
 {
     glClearColor(0.29f, 0.276f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_FRONT);
+    
     glUseProgram(program);
-    // mesh.Bind();
     glFrontFace(GL_CW);
-    mesh.Dispatch();
-    // mesh.Unbind();
+
+    transformStack.push(glm::mat4(1.0));
+    transformStack.push(transformStack.top());
+    {
+        transformStack.top() = glm::translate(transformStack.top(), glm::vec3(-1.0f, 0.0f, 0.0f));
+        transformStack.top() = glm::rotate(transformStack.top(), -glm::radians(-90.0f), glm::vec3(0, 1, 0));
+        transformStack.top() = glm::scale(transformStack.top(), glm::vec3(1));
+        glUniformMatrix4fv(glGetUniformLocation(program, "model"), 1, GL_FALSE, &transformStack.top()[0][0]);
+        mesh1.Dispatch();
+    }
+    transformStack.pop();
+    
+    transformStack.push(transformStack.top());
+    {
+        transformStack.top() = glm::translate(transformStack.top(), glm::vec3(1.0f, 0.0f, -1.0f));
+        transformStack.top() = glm::rotate(transformStack.top(), -glm::radians((float)currentTime*10.0f), glm::vec3(0, 1, 0));
+        transformStack.top() = glm::scale(transformStack.top(), glm::vec3(1));
+        glUniformMatrix4fv(glGetUniformLocation(program, "model"), 1, GL_FALSE, &transformStack.top()[0][0]);
+        mesh2.Dispatch();
+    }
+    transformStack.pop();
+    glUniformMatrix4fv(glGetUniformLocation(program, "view"), 1, GL_FALSE, &camera.view[0][0]);
+    glUniformMatrix4fv(glGetUniformLocation(program, "projection"), 1, GL_FALSE, &camera.projection[0][0]);
+
+    camera.Update();
 }
 
 int main()
@@ -119,7 +157,8 @@ int main()
         previousTime = currentTime;
     }
 
-    mesh.Delete();
+    mesh2.Delete();
+    mesh1.Delete();
     glDeleteProgram(program);
     
     glfwDestroyWindow(window);

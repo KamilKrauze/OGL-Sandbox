@@ -47,8 +47,6 @@ void InstancedMesh::Build()
         glVertexArrayElementBuffer(m_VAO, m_IBO);
     }
     glBindVertexArray(m_VAO);
-
-    
 }
 
 void InstancedMesh::Bind()
