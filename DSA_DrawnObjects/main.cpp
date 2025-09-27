@@ -44,8 +44,8 @@ static void init()
     mesh.Build();
     
     glEnable(GL_DEPTH_TEST);
-    // glEnable(GL_CULL_FACE);
-    // glCullFace(GL_BACK);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
 }
 
 static double previousTime = 0;
@@ -59,7 +59,7 @@ static void draw()
 
     glUseProgram(program);
     // mesh.Bind();
-    // glFrontFace(GL_CCW);
+    glFrontFace(GL_CW);
     mesh.Dispatch();
     // mesh.Unbind();
 }
