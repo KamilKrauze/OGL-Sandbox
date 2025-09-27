@@ -94,6 +94,7 @@ obj/
 
 # User-specific stuff
 /.idea/
+/bin/
 *.vcxproj*
 *.sln*
 
