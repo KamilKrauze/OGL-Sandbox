@@ -148,7 +148,7 @@ int main()
     glfwSetErrorCallback(error_callback);
 
     auto& [width, height] = RendererStatics::WindowDimensions;
-    window = glfwCreateWindow(width, height, "OpenGL DSA Drawing Example", NULL, NULL);
+    window = glfwCreateWindow(width, height, "OpenGL Deferred Rendering (No Transparency)", NULL, NULL);
     if (!window)
     {
         glfwTerminate();

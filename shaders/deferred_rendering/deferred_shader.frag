@@ -10,7 +10,7 @@ uniform sampler2D gNormal;
 uniform sampler2D gAlbedoSpec;
 uniform sampler2D depth;
 
-const float light_intensity = 1.0f;
+const float light_intensity = 0.5f;
 
 vec3 PIXEL_POSITION;
 vec3 PIXEL_NORMALS;
@@ -22,16 +22,17 @@ vec3 norm_lightpos;
 
 vec3 V;
 vec3 R;
+vec3 H;
 
 vec4 diffuse_colour()
 {
-    vec4 diffuse = max(dot(norm_normals, norm_lightpos), 0.0f) * vec4(vec3(light_intensity),1);
+    vec4 diffuse = max(dot(norm_normals, norm_lightpos), 0.0f) * vec4(vec3(light_intensity),1) * vec4(PIXEL_NORMALS,1);
     return diffuse;
 }
 
-vec4 specular()
+vec4 specular(float shininess)
 {
-    return pow(max(dot(R,V), 0.0), 8.0) * light_intensity * vec4(PIXEL_SPECULAR, 1);
+    return pow(max(dot(norm_normals,H), 0.0), shininess) * light_intensity * vec4(PIXEL_SPECULAR, 1) * vec4(PIXEL_NORMALS,1);
 }
 
 float linearize_depth(float depth, float nearPlane, float farPlane)
@@ -48,13 +49,15 @@ void main()
     PIXEL_NORMALS = texture(gNormal, TexCoords).rgb;
     PIXEL_SPECULAR = texture(gAlbedoSpec, TexCoords).rgb;
     PIXEL_DEPTH = texture(depth, TexCoords).r;
-    float linear_depth = linearize_depth(PIXEL_DEPTH, 0.001f, 1000.0f);
+    float linear_depth = linearize_depth(PIXEL_DEPTH, 0.001f, 1000.0f) / 1000;
+    float inv_depth = (1-linear_depth);
     
     norm_normals = normalize(PIXEL_NORMALS.rgb);
     norm_lightpos = normalize(light_pos);
 
     V = normalize(-texture(gPosition, TexCoords).rgb);
     R = reflect(-norm_lightpos, norm_normals);
+    H = (light_pos + V) / (normalize(light_pos + V)); 
     
-    fragColour = vec4((diffuse_colour().rgb + specular().rgb), 1);
+    fragColour = vec4((diffuse_colour().rgb + specular(3).rgb), 1);
 }

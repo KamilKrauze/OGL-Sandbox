@@ -13,5 +13,5 @@ void main()
 {
     gPosition    = FragPos;
     gNormal      = normalize(Normal);
-    gAlbedoSpec = VertexColour;
+    gAlbedoSpec = vec4(0.5, 0.5, 0.5, 1);
 }
