@@ -4,6 +4,7 @@
 #include <cstdio>
 #include "Logger.hpp"
 #include "DelegateHandlers/GeneralSystemEvents.h"
+#include "Renderer/RendererStatics.hpp"
 
 /* Error callback, outputs error to stl error stream */
 static void error_callback(int error, const char* description)
@@ -21,6 +22,7 @@ static void window_resize(GLFWwindow* window, int width, int height)
 {
     glViewport(0, 0, width, height);
     LOG_INFO("[EVENT/WindowResize] - {%d, %d}", width, height);
+    RendererStatics::WindowDimensions = {width, height};
     WindowResizeEvent.Broadcast(WindowResizePayload(width, height));
 }
 
