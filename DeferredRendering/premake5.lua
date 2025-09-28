@@ -1,4 +1,4 @@
-project "FrameBuffersExample"
+project "Deferred_Rendering"
     location "."
     kind "ConsoleApp"
     language "C++"
