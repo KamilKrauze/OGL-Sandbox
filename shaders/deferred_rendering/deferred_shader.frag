@@ -10,29 +10,25 @@ uniform sampler2D gNormal;
 uniform sampler2D gAlbedoSpec;
 uniform sampler2D depth;
 
+uniform vec3 CameraPosition;
+
 const float light_intensity = 0.5f;
+const float shine_factor = 10.0;
 
 vec3 PIXEL_POSITION;
 vec3 PIXEL_NORMALS;
 vec3 PIXEL_SPECULAR;
 float PIXEL_DEPTH;
 
-vec3 norm_normals;
-vec3 norm_lightpos;
-
-vec3 V;
-vec3 R;
-vec3 H;
-
-vec4 diffuse_colour()
+vec3 diffuse_colour(float intensity, vec3 L, vec3 N)
 {
-    vec4 diffuse = max(dot(norm_normals, norm_lightpos), 0.0f) * vec4(vec3(light_intensity),1) * vec4(PIXEL_NORMALS,1);
-    return diffuse;
+    float diffuse = max(dot(N, L), 0.0f);
+    return vec3(diffuse);
 }
 
-vec4 specular(float shininess)
+vec3 specular(float intensity, float shininess, vec3 L, vec3 N, vec3 H)
 {
-    return pow(max(dot(norm_normals,H), 0.0), shininess) * light_intensity * vec4(PIXEL_SPECULAR, 1) * vec4(PIXEL_NORMALS,1);
+    return pow(max(dot(N,H), 0.0), shininess) * PIXEL_SPECULAR;
 }
 
 float linearize_depth(float depth, float nearPlane, float farPlane)
@@ -41,23 +37,26 @@ float linearize_depth(float depth, float nearPlane, float farPlane)
     float linear_depth = (2.0 * nearPlane * farPlane) / (farPlane + nearPlane - z * (farPlane - nearPlane));
 
     return linear_depth;
-}
+}        
 
 void main()
-{
+{   
+    PIXEL_DEPTH = texture(depth, TexCoords).r;
     PIXEL_POSITION = texture(gPosition, TexCoords).rgb;
     PIXEL_NORMALS = texture(gNormal, TexCoords).rgb;
     PIXEL_SPECULAR = texture(gAlbedoSpec, TexCoords).rgb;
-    PIXEL_DEPTH = texture(depth, TexCoords).r;
-    float linear_depth = linearize_depth(PIXEL_DEPTH, 0.001f, 1000.0f) / 1000;
-    float inv_depth = (1-linear_depth);
-    
-    norm_normals = normalize(PIXEL_NORMALS.rgb);
-    norm_lightpos = normalize(light_pos);
 
-    V = normalize(-texture(gPosition, TexCoords).rgb);
-    R = reflect(-norm_lightpos, norm_normals);
-    H = (light_pos + V) / (normalize(light_pos + V)); 
+    if (PIXEL_DEPTH >= 1.0f)
+    {
+        discard; return;
+    }
     
-    fragColour = vec4((diffuse_colour().rgb + specular(3).rgb), 1);
+    vec3 N = normalize(PIXEL_NORMALS);
+    vec3 L = normalize(light_pos - PIXEL_POSITION);
+
+    vec3 V = normalize(CameraPosition - PIXEL_POSITION);
+    vec3 R = reflect(-PIXEL_POSITION, N);
+    vec3 H = (normalize(L + V)); 
+    
+    fragColour = vec4((diffuse_colour(light_intensity, L,N) + specular(light_intensity, shine_factor, L, N, H)), 1);
 }

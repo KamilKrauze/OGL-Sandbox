@@ -59,7 +59,7 @@ void GBuffer::BindBuffers(int width, int height)
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, gDepth, 0);
 
     // Tell OpenGL which color attachments to draw into
-    glDrawBuffers(3, attachments.data());
+    glDrawBuffers(attachments.size(), attachments.data());
 }
 
 void GBuffer::RecreateBuffers(int width, int height)

@@ -127,6 +127,7 @@ static void draw()
     glUniform1i(glGetUniformLocation(program, "gNormal"), 1);
     glUniform1i(glGetUniformLocation(program, "gAlbedoSpec"), 2);
     glUniform1i(glGetUniformLocation(program, "depth"), 3);
+    glUniform3fv(glGetUniformLocation(program, "CameraPosition"), 1, &camera.eye[0]);
     
     quadMesh.Dispatch();
     

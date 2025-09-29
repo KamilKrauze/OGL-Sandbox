@@ -9,7 +9,7 @@ out vec3 light_pos;
 
 void main()
 {
-    light_pos = vec3(0,0.75,1);
+    light_pos = vec3(0,0.75,5);
     TexCoords = VTEX_COORDS;
     gl_Position = vec4(VERT_POS, 1);
 }
