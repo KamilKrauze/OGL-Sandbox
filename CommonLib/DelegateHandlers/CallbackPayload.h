@@ -14,6 +14,23 @@ struct CallbackPayload : public CallbackPayloadBase
     ~CallbackPayload() {}
 };
 
+#define DEFINE_PAYLOAD_NoParam(NAME) struct NAME : CallbackPayload<NAME> \
+{ \
+NAME() {} \
+\
+~NAME() = default; \
+\
+}; \
+
+#define DEFINE_PAYLOAD_OneParam(NAME, TYPE1, NAME1) struct NAME : CallbackPayload<NAME> \
+{ \
+TYPE1 NAME1; \
+NAME(TYPE1 NAME1) { this->NAME1 = NAME1; } \
+\
+~NAME() = default; \
+\
+}; \
+
 #define DEFINE_PAYLOAD_TwoParam(NAME, TYPE1, NAME1, TYPE2, NAME2) struct NAME : CallbackPayload<NAME> \
 { \
     TYPE1 NAME1; \
