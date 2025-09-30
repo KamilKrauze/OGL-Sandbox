@@ -65,18 +65,25 @@ void GBuffer::BindBuffers(int width, int height)
 void GBuffer::RecreateBuffers(int width, int height)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-
+    
+    // Detach any existing color attachments from the FBO first
+    // (This prevents the FBO from holding references to the old textures which delays their deletion)
+    if (gPosition)     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
+    if (gNormal)       glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, 0, 0);
+    if (gAlbedoSpec)   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, 0, 0);
+    if (gDepth)        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,     GL_TEXTURE_2D, 0, 0);
+    
     // delete old attachments
     glDeleteTextures(1, &gPosition);
     glDeleteTextures(1, &gNormal);
     glDeleteTextures(1, &gAlbedoSpec);
-    glDeleteRenderbuffers(1, &gDepth);
+    glDeleteTextures(1, &gDepth);
 
     gPosition = 0;
     gNormal = 0;
     gAlbedoSpec = 0;
     gDepth = 0;
-    
+
     BindBuffers(width, height);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
