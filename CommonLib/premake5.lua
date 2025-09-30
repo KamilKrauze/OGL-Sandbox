@@ -12,6 +12,8 @@ project "CommonLib"
         "./%{wks.location}/%{prj.location}/**.cpp",
 
         "./%{wks.location}/thirdparty/glad/glad.c",
+        
+        imgui_src_files,
     }
 
     includedirs
@@ -22,6 +24,7 @@ project "CommonLib"
         "./%{wks.location}/thirdparty/KHR/",
         "./%{wks.location}/thirdparty/glm/",
         "./%{wks.location}/thirdparty/glfw/include/",
+        "./%{wks.location}/thirdparty/imgui/",
     }
 
     libdirs

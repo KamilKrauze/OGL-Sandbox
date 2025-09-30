@@ -11,33 +11,106 @@ uniform sampler2D gAlbedoSpec;
 uniform sampler2D depth;
 
 uniform vec3 CameraPosition;
+uniform float shine_factor;
+uniform float metallic;
+uniform float light_intensity;
+uniform float fresnel_coeff;
+uniform float fresnel_factor;
 
-const float light_intensity = 0.5f;
-const float shine_factor = 10.0;
 
 vec3 PIXEL_POSITION;
 vec3 PIXEL_NORMALS;
 vec3 PIXEL_SPECULAR;
 float PIXEL_DEPTH;
 
-vec3 diffuse_colour(float intensity, vec3 L, vec3 N)
+vec3 lambert_diffuse(vec3 albedo, float intensity, vec3 L, vec3 N)
 {
-    float diffuse = max(dot(N, L), 0.0f);
-    return vec3(diffuse);
+    vec3 diffuse = max(dot(N, L), 0.0f) * albedo * intensity;
+    return diffuse;
 }
 
-vec3 specular(float intensity, float shininess, vec3 L, vec3 N, vec3 H)
+vec3 blinn_phong_specular(float intensity, float shininess, vec3 L, vec3 N, vec3 H)
 {
-    return pow(max(dot(N,H), 0.0), shininess) * PIXEL_SPECULAR;
+    return pow(max(dot(N,H), 0.0), shininess) * vec3(0.985, 0.6, 0.5) * intensity;
 }
 
-float linearize_depth(float depth, float nearPlane, float farPlane)
+vec3 schlick_fresnel(vec3 R0, float cos_i)
 {
-    float z = depth * 2.0 - 1.0;
-    float linear_depth = (2.0 * nearPlane * farPlane) / (farPlane + nearPlane - z * (farPlane - nearPlane));
+    return R0 + ((1-R0)*pow(1-cos_i, 5.0));
+}
+const float PI = 3.14159265359;
 
-    return linear_depth;
-}        
+vec3 beckmann_distribution(vec3 N, vec3 H, float roughness)
+{
+    vec3 result = vec3(0);
+    const float alpha = max(dot(N,H),0.0);
+    if (alpha <= 0.0)
+    {
+        return result;
+    }
+    const float m = max(0.001, roughness * roughness);
+    const float m2 = m*m;
+    
+    const float cos2 = alpha * alpha;
+    const float tan2 = (1.0-cos2) / cos2;
+    const float exponent = -tan2 / m2;
+    const float numerator = exp(exponent);
+    const float denominator = PI * m2 * cos2 * cos2;
+    
+    result = vec3(numerator / denominator);
+    
+    return result;
+}
+
+vec3 geometric_attenuation(vec3 N, vec3 V, vec3 L, vec3 H)
+{
+    vec3 result = vec3(0);
+    
+    const float dotHN = max(dot(H,N),0.001);
+    const float dotLN = max(dot(L,N),0.001);
+    const float dotVN = max(dot(V,N),0.001);
+    const float dotVH = max(dot(V,H),0.001);
+    
+    const float g1 = (2 * dotHN * dotVN) / dotVH;
+    const float g2 = (2 * dotHN * dotLN) / dotVH;
+    
+    result = vec3(min(1,min(g1,g2)));
+    
+    return result;
+}
+
+vec3 cook_torrance_brdf(vec3 N, vec3 V, vec3 L, vec3 H, vec3 R0, float roughness)
+{
+    vec3 result = vec3(0);
+    
+    const float dotNL = max(dot(N,L),0.01);
+    const float dotVN = max(dot(V,N),0.01);
+    
+    float cosTheta = max(dot(N,V), 0);
+    const vec3 F = schlick_fresnel(R0, cosTheta);
+    const vec3 D = beckmann_distribution(N,H,roughness);
+    const vec3 G = geometric_attenuation(N,V,L,H);
+    
+    const vec3 numerator = D * F * G;
+    const vec3 denominator = 4.0 * vec3(dotVN) * vec3(dotNL);
+    result = (numerator/max(denominator,0.001));    
+    
+    return result;
+}
+
+vec3 burley_diffuse(vec3 N, vec3 V, vec3 L, vec3 H, vec3 albedo, float roughness)
+{
+    const float dotLN = max(dot(L,N),0.001);
+    const float dotVN = max(dot(V,N),0.001);
+    const float dotHL = max(dot(H,L),0.001);
+    
+    const float F0 = 0.5 + (2.0 * roughness * pow(dotHL,2.0));
+    const float F90 = 1.0;
+    
+    vec3 diffuse = mix(F0, F90, dotLN) * mix(F0, F90, dotVN) * albedo;
+
+    return diffuse;
+}
 
 void main()
 {   
@@ -56,7 +129,25 @@ void main()
 
     vec3 V = normalize(CameraPosition - PIXEL_POSITION);
     vec3 R = reflect(-PIXEL_POSITION, N);
-    vec3 H = (normalize(L + V)); 
+    vec3 H = (normalize(L + V));
+
+    float cosTheta = max(dot(N,V), 0);
+//    fragColour = vec4((lambert_diffuse(vec3(0.985, 0.2, 0.15), light_intensity, L,N) + blinn_phong_specular(light_intensity, shine_factor, L, N, H)), 1);
+//    fragColour = vec4(fragColour.rgb + min(schlick_fresnel(vec3(fresnel_coeff), cosTheta * fresnel_factor),0.0), 1);
+//    fragColour = vec4(vec3(RM(lambert_diffuse(vec3(0.985, 0.2, 0.15), light_intensity, L,N))),1);
+//    fragColour= vec4(beckmann_distribution(N,H,light_intensity) ,1);
+//    fragColour= vec4(geometric_attenuation(N,V,L,H) ,1);
     
-    fragColour = vec4((diffuse_colour(light_intensity, L,N) + specular(light_intensity, shine_factor, L, N, H)), 1);
+    vec3 albedo = vec3(0.985, 0.2, 0.15);
+    float roughness = max(0.01,shine_factor);
+    
+//    fragColour = vec4(lambert_diffuse(albedo, light_intensity, L,N) + cook_torrance_brdf(N,V,L,H, vec3(fresnel_coeff), roughness) * light_intensity * max(dot(N,L), 0.0), 1);
+    
+    vec3 diffuse = burley_diffuse(N,L,V,H, albedo, roughness);
+    vec3 specular = cook_torrance_brdf(N,V,L,H, vec3(fresnel_coeff), roughness);
+
+    fragColour.rgb = (diffuse * vec3(1-metallic)) + (specular * mix(vec3(1.0), albedo, metallic)) + vec3(0.001, 0.01, 0.09);
+    fragColour.a = 1;
+    
+//    fragColour = vec4( +  * light_intensity * max(dot(N,L), 0.0), 1);
 }

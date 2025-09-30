@@ -15,7 +15,6 @@ project "Deferred_Rendering"
         "./%{wks.location}/thirdparty/glad/glad.c",
         
         shader_files,
-
     }
 
     includedirs
@@ -26,6 +25,7 @@ project "Deferred_Rendering"
         "./%{wks.location}/thirdparty/KHR/",
         "./%{wks.location}/thirdparty/glm/",
         "./%{wks.location}/thirdparty/glfw/include/",
+        "./%{wks.location}/thirdparty/imgui/",
 
         "./%{wks.location}/CommonLib/"
     }

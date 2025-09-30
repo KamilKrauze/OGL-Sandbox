@@ -52,7 +52,7 @@ inline void log(const char* format, ...)
     std::cout << "\033[0m\n";
 }
 
-#if defined(DEBUG)
+// #if defined(DEBUG)
 
 #define LOG_VERBOSE(format, ...)		log<LogLevel::Verbose>(format, ##__VA_ARGS__)
 #define LOG_INFO(format, ...)			log<LogLevel::Info>(format, ##__VA_ARGS__)
@@ -60,14 +60,14 @@ inline void log(const char* format, ...)
 #define LOG_ERROR(format, ...)			log<LogLevel::Error>(format, ##__VA_ARGS__)
 #define LOG_SUCCESS(format, ...)		log<LogLevel::Success>(format, ##__VA_ARGS__)
 
-#elif defined(NDEBUG)
+// #elif defined(NDEBUG)
 
-#define LOG_VERBOSE(format, ...)        log<LogLevel::Verbose>(format, ##__VA_ARGS__)
-#define LOG_INFO(format, ...)
-#define LOG_WARNING(format, ...)		
-#define LOG_ERROR(format, ...)			
-#define LOG_SUCCESS(format, ...)
+// #define LOG_VERBOSE(format, ...)        log<LogLevel::Verbose>(format, ##__VA_ARGS__)
+// #define LOG_INFO(format, ...)
+// #define LOG_WARNING(format, ...)		
+// #define LOG_ERROR(format, ...)			
+// #define LOG_SUCCESS(format, ...)
 
-#endif
+// #endif
 
 #endif // !LOGGER_HPP

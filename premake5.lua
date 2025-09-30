@@ -6,6 +6,18 @@ shader_files = {
     "%{wks.location}/shaders/**.comp",
 }
 
+imgui_src_files = {
+    "%{wks.location}/thirdparty/imgui/*.cpp",
+    "%{wks.location}/thirdparty/imgui/backends/*opengl3*.cpp",
+    "%{wks.location}/thirdparty/imgui/backends/*glfw*.cpp",
+}
+
+imgui_src_include = {
+    "%{wks.location}/thirdparty/imgui/*.h",
+    "%{wks.location}/thirdparty/imgui/backends/*opengl3*.h",
+    "%{wks.location}/thirdparty/imgui/backends/*glfw*.h",
+} 
+
 workspace "OGL-Sandbox"
     architecture "x64"
     configurations { "Debug", "Release" }
