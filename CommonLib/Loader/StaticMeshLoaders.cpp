@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 
 // Standard libraries
+#include <chrono>
 #include <iostream>
 #include <fstream>
 #include <map>
@@ -28,9 +29,11 @@ struct VertexKey {
 
 namespace MeshLoaders::Static
 {
-    
+    std::chrono::time_point<std::chrono::high_resolution_clock> start;
     void ImportOBJ(VertexData& vertInfo, const std::string_view filepath)
     {
+        start = std::chrono::high_resolution_clock::now();
+        
         std::ifstream file(filepath.data(), std::ios::in);
         if (file.fail()) {
             std::cout << "ERROR: Filepath is invalid, may not exist or may be incorrect at... " << filepath << std::endl;
@@ -59,7 +62,7 @@ namespace MeshLoaders::Static
             } 
             else if (type == UVS) {
                 ss >> x >> y;
-                tmp_uvs.push_back({ x, y }); // flip Y if needed
+                tmp_uvs.push_back({ x, y });
             } 
             else if (type == INDEX) {
                 std::string token;
@@ -92,6 +95,7 @@ namespace MeshLoaders::Static
                 }
             }
         }
+        std::cout << "Time taken to load '" << filepath.data()+'\n' << "' - " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count() / 1000000.0f << "s\n";
 
         // Assign default color
         vertInfo.colours.assign(vertInfo.vertices.size(), glm::vec4(1.0f));
@@ -102,5 +106,6 @@ namespace MeshLoaders::Static
         tmp_uvs.clear();
 
         std::cout << "Finished loading: " << filepath << std::endl;
+
     }
 }
