@@ -26,7 +26,6 @@ void InstancedMesh::Build()
         const auto attribIndex = Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.POSITION;
         MeshPrimitiveUtils::CreateBufferObject(m_VBO, vertices.data(), MeshPrimitiveUtils::full_byte_size(vertices), bufferUsage);
         MeshPrimitiveUtils::CreateVertexAttrib(m_VAO, m_VBO, attribIndex, 3, MeshPrimitiveUtils::element_byte_size(vertices));
-        LOG_INFO("Binding vertices");
     }
     
     if (colours.size() > 0)
@@ -34,7 +33,6 @@ void InstancedMesh::Build()
         const auto attribIndex = Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.COLOUR;
         MeshPrimitiveUtils::CreateBufferObject(m_CBO, colours.data(), MeshPrimitiveUtils::full_byte_size(colours), bufferUsage);
         MeshPrimitiveUtils::CreateVertexAttrib(m_VAO, m_CBO, attribIndex, 4, MeshPrimitiveUtils::element_byte_size(colours));
-        LOG_INFO("Binding colours");
     }
 
     if (normals.size() > 0)
@@ -42,7 +40,6 @@ void InstancedMesh::Build()
         const auto attribIndex = Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.NORMAL;
         MeshPrimitiveUtils::CreateBufferObject(m_NBO, normals.data(), MeshPrimitiveUtils::full_byte_size(normals), bufferUsage);
         MeshPrimitiveUtils::CreateVertexAttrib(m_VAO, m_NBO, attribIndex, 3, MeshPrimitiveUtils::element_byte_size(normals));
-        LOG_INFO("Binding normals");
     }
 
     if (texCoords.size() > 0)
@@ -50,7 +47,6 @@ void InstancedMesh::Build()
         const auto attribIndex = Constants::Renderer::VERTEX_CONSTANTS.AttribIndex.UV0;
         MeshPrimitiveUtils::CreateBufferObject(m_UV0BO, texCoords.data(), MeshPrimitiveUtils::full_byte_size(texCoords), bufferUsage);
         MeshPrimitiveUtils::CreateVertexAttrib(m_VAO, m_UV0BO, attribIndex, 2, MeshPrimitiveUtils::element_byte_size(texCoords));
-        LOG_INFO("Binding texCoords");
     }
 
     if (indices.size() > 0)
@@ -58,7 +54,6 @@ void InstancedMesh::Build()
         glCreateBuffers(1, &m_IBO);
         glNamedBufferStorage(m_IBO, indices.size() * sizeof(GLuint), indices.data(), bufferUsage);    
         glVertexArrayElementBuffer(m_VAO, m_IBO);
-        LOG_INFO("Binding indices");
     }
     glBindVertexArray(m_VAO);
     glBindVertexArray(0);
@@ -77,7 +72,6 @@ void InstancedMesh::Dispatch()
     glDrawElementsInstanced(GL_TRIANGLES, (GLsizei)indices.size(), GL_UNSIGNED_INT, nullptr, 1);
 
     glBindVertexArray(0);
-
 }
 
 void InstancedMesh::Unbind()

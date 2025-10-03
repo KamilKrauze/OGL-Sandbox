@@ -3,7 +3,6 @@
 
 #include <cstdio>
 #include "Logger.hpp"
-#include "DelegateHandlers/GeneralSystemEvents.h"
 #include "Renderer/RendererStatics.hpp"
 
 static bool bResizePending = false;
@@ -26,11 +25,6 @@ static void window_resize(GLFWwindow* window, int width, int height)
     bResizePending = true;
     bCanRender = true;
     RendererStatics::WindowDimensions = {width, height};
-//     glViewport(0, 0, width, height);
-     // LOG_INFO("[EVENT/WindowResize] - {%d, %d}", width, height);
-     // RendererStatics::WindowDimensions = {width, height};
-     // WindowResizeEvent.Broadcast(WindowResizePayload(width, height));
-//     bResizePending = true;
 }
 
 #endif //! GLFW_CALLBACKS_HPP

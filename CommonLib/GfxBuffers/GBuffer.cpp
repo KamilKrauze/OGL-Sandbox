@@ -19,13 +19,21 @@ void GBuffer::Create()
 
 void GBuffer::BindBuffers(int width, int height)
 {
+    // Albedo + Emissive (RGBA8)
+    glGenTextures(1, &gAlbedoEmissive);
+    glBindTexture(GL_TEXTURE_2D, gAlbedoEmissive);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gAlbedoEmissive, 0);
+    
     // Position (RGB16F for precision)
     glGenTextures(1, &gPosition);
     glBindTexture(GL_TEXTURE_2D, gPosition);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, gPosition, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gPosition, 0);
 
     // Normal (RGB16F)
     glGenTextures(1, &gNormal);
@@ -33,15 +41,15 @@ void GBuffer::BindBuffers(int width, int height)
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB16F, width, height, 0, GL_RGB, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, gNormal, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gNormal, 0);
 
-    // Albedo + Specular (RGBA8)
-    glGenTextures(1, &gAlbedoSpec);
-    glBindTexture(GL_TEXTURE_2D, gAlbedoSpec);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+    // SRMAO (RGB16F)
+    glGenTextures(1, &gSRMAO);
+    glBindTexture(GL_TEXTURE_2D, gSRMAO);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_FLOAT, NULL);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, gAlbedoSpec, 0);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, gSRMAO, 0);
     
     // Depth Renderbuffer
     glGenTextures(1, &gDepth);
@@ -54,6 +62,8 @@ void GBuffer::BindBuffers(int width, int height)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
     float borderColor[] = {1.0, 1.0, 1.0, 1.0};
     glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+    // Make sure the texture is sampled as a float texture (not shadow compare mode) if you sample with sampler2D
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_NONE);
 
     // Attach as *depth* attachment, not color!
     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, gDepth, 0);
@@ -65,25 +75,7 @@ void GBuffer::BindBuffers(int width, int height)
 void GBuffer::RecreateBuffers(int width, int height)
 {
     glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
-    
-    // Detach any existing color attachments from the FBO first
-    // (This prevents the FBO from holding references to the old textures which delays their deletion)
-    if (gPosition)     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
-    if (gNormal)       glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, 0, 0);
-    if (gAlbedoSpec)   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, 0, 0);
-    if (gDepth)        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,     GL_TEXTURE_2D, 0, 0);
-    
-    // delete old attachments
-    glDeleteTextures(1, &gPosition);
-    glDeleteTextures(1, &gNormal);
-    glDeleteTextures(1, &gAlbedoSpec);
-    glDeleteTextures(1, &gDepth);
-
-    gPosition = 0;
-    gNormal = 0;
-    gAlbedoSpec = 0;
-    gDepth = 0;
-
+    DeleteInternal();
     BindBuffers(width, height);
 
     if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
@@ -95,4 +87,55 @@ void GBuffer::RecreateBuffers(int width, int height)
 void GBuffer::RecreateBuffersOnWindowResize(WindowResizePayload& payload)
 {
     RecreateBuffers(payload.width, payload.height);
+}
+
+void GBuffer::ReadBuffer(GLuint& program)
+{
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, gAlbedoEmissive);
+    glActiveTexture(GL_TEXTURE1);
+    glBindTexture(GL_TEXTURE_2D, gPosition);
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, gNormal);
+    glActiveTexture(GL_TEXTURE3);
+    glBindTexture(GL_TEXTURE_2D, gSRMAO);
+    glActiveTexture(GL_TEXTURE4);
+    glBindTexture(GL_TEXTURE_2D, gDepth);
+    glUniform1i(glGetUniformLocation(program, "gAlbedoEmissive"), 0);
+    glUniform1i(glGetUniformLocation(program, "gPosition"), 1);
+    glUniform1i(glGetUniformLocation(program, "gNormal"), 2);
+    glUniform1i(glGetUniformLocation(program, "gSRMAO"), 3);
+    glUniform1i(glGetUniformLocation(program, "depth"), 4);
+}
+
+void GBuffer::Delete()
+{
+    glBindFramebuffer(GL_FRAMEBUFFER, framebuffer);
+    DeleteInternal();
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    glDeleteFramebuffers(0, &framebuffer);
+}
+
+void GBuffer::DeleteInternal()
+{
+    // Detach any existing color attachments from the FBO first
+    // (This prevents the FBO from holding references to the old textures which delays their deletion)
+    if (gAlbedoEmissive)   glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, 0, 0);
+    if (gPosition)     glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1, GL_TEXTURE_2D, 0, 0);
+    if (gNormal)       glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT2, GL_TEXTURE_2D, 0, 0);
+    if (gSRMAO)       glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT3, GL_TEXTURE_2D, 0, 0);
+    if (gDepth)        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,     GL_TEXTURE_2D, 0, 0);
+    
+    // delete old attachments
+    glDeleteTextures(1, &gAlbedoEmissive);
+    glDeleteTextures(1, &gPosition);
+    glDeleteTextures(1, &gNormal);
+    glDeleteTextures(1, &gSRMAO);
+    glDeleteTextures(1, &gDepth);
+
+    gAlbedoEmissive = 0;
+    gPosition = 0;
+    gNormal = 0;
+    gSRMAO = 0;
+    gDepth = 0;
 }

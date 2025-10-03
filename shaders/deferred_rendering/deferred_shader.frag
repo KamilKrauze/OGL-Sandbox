@@ -5,9 +5,10 @@ in vec3 light_pos;
 out vec4 fragColour;
 
 // G-Buffer textures
+uniform sampler2D gAlbedoEmissive;
 uniform sampler2D gPosition;
 uniform sampler2D gNormal;
-uniform sampler2D gAlbedoSpec;
+uniform sampler2D gSRMAO;
 uniform sampler2D depth;
 
 uniform vec3 CameraPosition;
@@ -17,10 +18,10 @@ uniform float light_intensity;
 uniform float fresnel_coeff;
 uniform float fresnel_factor;
 
-
+vec3 ALBEDO;
+vec4 SRMAO;
 vec3 PIXEL_POSITION;
 vec3 PIXEL_NORMALS;
-vec3 PIXEL_SPECULAR;
 float PIXEL_DEPTH;
 
 vec3 lambert_diffuse(vec3 albedo, float intensity, vec3 L, vec3 N)
@@ -48,7 +49,7 @@ vec3 beckmann_distribution(vec3 N, vec3 H, float roughness)
     {
         return result;
     }
-    const float m = max(0.001, roughness * roughness);
+    const float m = max(0.01, roughness * roughness);
     const float m2 = m*m;
     
     const float cos2 = alpha * alpha;
@@ -112,12 +113,39 @@ vec3 burley_diffuse(vec3 N, vec3 V, vec3 L, vec3 H, vec3 albedo, float roughness
     return diffuse;
 }
 
+// In your lighting fragment shader (GLSL)
+float LinearizeDepth(float depth)
+{
+    const float near = 0.001;
+    const float far = 1000000.0;
+
+    // if depth is the NDC / window depth (0..1), convert to NDC z in [-1,1]
+    float z_ndc = depth * 2.0 - 1.0;
+    // then recover eye-space z (negative along -Z if using standard OpenGL)
+    // alternative robust formula:
+    float linear = (2.0 * near * far) / (far + near - z_ndc * (far - near));
+    return linear; // linear in view-space distance
+}
+
+vec3 RRTAndODTFit(vec3 v) {
+    vec3 a = v * (v + 0.0245786) - 0.000090537;
+    vec3 b = v * (0.983729 * v + 0.4329510) + 0.238081;
+    return a / b;
+}
+
+vec3 toneMapACES(vec3 color, float exposure) {
+    color *= exposure; // <-- exposure control
+    color = RRTAndODTFit(color);
+    return pow(color, vec3(1.0/2.2)); // gamma to sRGB
+}
+
 void main()
 {   
-    PIXEL_DEPTH = texture(depth, TexCoords).r;
+    ALBEDO = texture(gAlbedoEmissive, TexCoords).rgb;
+    SRMAO = texture(gSRMAO, TexCoords);
     PIXEL_POSITION = texture(gPosition, TexCoords).rgb;
     PIXEL_NORMALS = texture(gNormal, TexCoords).rgb;
-    PIXEL_SPECULAR = texture(gAlbedoSpec, TexCoords).rgb;
+    PIXEL_DEPTH = texture(depth, TexCoords).r;
 
     if (PIXEL_DEPTH >= 1.0f)
     {
@@ -130,24 +158,22 @@ void main()
     vec3 V = normalize(CameraPosition - PIXEL_POSITION);
     vec3 R = reflect(-PIXEL_POSITION, N);
     vec3 H = (normalize(L + V));
+    float ROUGHNESS = max(0.01, SRMAO.b * SRMAO.g * shine_factor);
 
     float cosTheta = max(dot(N,V), 0);
-//    fragColour = vec4((lambert_diffuse(vec3(0.985, 0.2, 0.15), light_intensity, L,N) + blinn_phong_specular(light_intensity, shine_factor, L, N, H)), 1);
-//    fragColour = vec4(fragColour.rgb + min(schlick_fresnel(vec3(fresnel_coeff), cosTheta * fresnel_factor),0.0), 1);
+//    fragColour = vec4((lambert_diffuse(ALBEDO, light_intensity, L,N) + blinn_phong_specular(light_intensity, ROUGHNESS, L, N, H)), 1);
+//    fragColour = vec4(ALBEDO + min(schlick_fresnel(vec3(fresnel_coeff), cosTheta * fresnel_factor),0.0), 1);
 //    fragColour = vec4(vec3(RM(lambert_diffuse(vec3(0.985, 0.2, 0.15), light_intensity, L,N))),1);
-//    fragColour= vec4(beckmann_distribution(N,H,light_intensity) ,1);
-//    fragColour= vec4(geometric_attenuation(N,V,L,H) ,1);
+//    fragColour= vec4(ALBEDO + beckmann_distribution(N,H,light_intensity) ,1);
+//    fragColour= vec4(ALBEDO + geometric_attenuation(N,V,L,H) ,1);
     
-    vec3 albedo = vec3(0.985, 0.2, 0.15);
-    float roughness = max(0.01,shine_factor);
     
-//    fragColour = vec4(lambert_diffuse(albedo, light_intensity, L,N) + cook_torrance_brdf(N,V,L,H, vec3(fresnel_coeff), roughness) * light_intensity * max(dot(N,L), 0.0), 1);
+//    fragColour = vec4(lambert_diffuse(ALBEDO * SRMAO.a, light_intensity, L,N) + cook_torrance_brdf(N,V,L,H, vec3(fresnel_coeff), ROUGHNESS) * light_intensity * max(dot(N,L), 0.0), 1);
     
-    vec3 diffuse = burley_diffuse(N,L,V,H, albedo, roughness);
-    vec3 specular = cook_torrance_brdf(N,V,L,H, vec3(fresnel_coeff), roughness);
+    vec3 diffuse = burley_diffuse(N, L, V, H, ALBEDO * SRMAO.a, ROUGHNESS);
+    vec3 specular = cook_torrance_brdf(N, V, L, H, vec3(fresnel_coeff), ROUGHNESS);
 
-    fragColour.rgb = (diffuse * vec3(1-metallic)) + (specular * mix(vec3(1.0), albedo, metallic)) + vec3(0.001, 0.01, 0.09);
+    fragColour.rgb = (diffuse * vec3(1-(SRMAO.b - metallic))) + (specular * mix(vec3(1.0), ALBEDO, (SRMAO.b - metallic))) * light_intensity + vec3(0.001, 0.01, 0.09);
+//    fragColour.rgb = toneMapACES(fragColour.rgb, 1);
     fragColour.a = 1;
-    
-//    fragColour = vec4( +  * light_intensity * max(dot(N,L), 0.0), 1);
 }

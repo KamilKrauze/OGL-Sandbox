@@ -22,6 +22,7 @@ void main()
     FragPos = worldPos.xyz;
     VertexColour = VERT_COLOUR;
     Normal = normal_matrix * VERT_NORMAL;
+    TexCoords = VTEX_COORDS;
     
     gl_Position = projection * view * worldPos;
 }

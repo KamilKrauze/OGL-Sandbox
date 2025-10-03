@@ -15,6 +15,7 @@
 #include <imgui/backends/imgui_impl_glfw.h>
 #include <imgui/backends/imgui_impl_opengl3.h>
 
+#include "Callbacks/OGLErrorCallbacks.hpp"
 #include "Callbacks/GLFWCallbacks.hpp"
 #include "Shader/ShaderBuilder.hpp"
 #include "Renderer/RendererUtils.hpp"
@@ -24,6 +25,7 @@
 #include "Renderer/Camera.h"
 #include "Renderer/RendererStatics.hpp"
 #include "Renderer/Primitives/InstancedMesh.h"
+#include "Renderer/Texturing/Texture.h"
 
 static GLFWwindow* window;
 
@@ -32,6 +34,9 @@ GLuint program = 0;
 InstancedMesh mesh1{};
 InstancedMesh quadMesh{};
 Camera camera;
+
+Texture diffuseTexture;
+Texture ARMTexture; // AO, Roughness, Metallic
 
 static std::vector<glm::vec3> quadVertices = {
     // positions 
@@ -60,23 +65,32 @@ float metallic = 0.0f;
 float fresnel_coeff = 0.05f;
 float fresnel_factor = 1.0f;
 
-glm::vec3 translation = glm::vec3(0,-1,0);
-glm::vec3 rotation = glm::vec3(0);
+glm::vec3 translation = glm::vec3(0,-0.1,0);
+glm::vec3 rotation = glm::vec3(0 ,glm::radians(45.0), 0);
 glm::vec3 scale = glm::vec3(1);
+std::stack<glm::mat4> transformStack;
 
 GBuffer gbuffer;
+
 static void init()
 {
-    camera = Camera(Perspective, 1, 45.0f, 0.001f, 1000.0f, glm::vec3(0, 0, 4), glm::vec3(0, 0, -1));
+    // During init, enable debug output
+    glEnable              ( GL_DEBUG_OUTPUT );
+    glDebugMessageCallback(GLErrorCallback, 0);
+    
+    camera = Camera(Perspective, 1, 70.0f, 0.001f, 1000000.0f, glm::vec3(0, 0, 4), glm::vec3(0, 0, -1));
     WindowResizeEvent.Bind(&camera, &Camera::UpdateOnWindowResize);
     WindowResizeEvent.Bind(&gbuffer, &GBuffer::RecreateBuffersOnWindowResize);
     
     VertexData data1{};
     // MeshLoaders::Static::ImportOBJ(data1, std::string_view("../meshes/aston_vantage2018.obj"));
-    MeshLoaders::Static::ImportOBJ(data1, std::string_view("../meshes/SmoothMonkey.obj"));
+    MeshLoaders::Static::ImportOBJ(data1, std::string_view("../meshes/cannon_01.obj"));
     mesh1 = std::move(data1);
     mesh1.Build();
 
+    diffuseTexture.CreateTextureUnit(10, "../textures/cannon/cannon_01_diff_4k.jpg");
+    ARMTexture.CreateTextureUnit(11, "../textures/cannon/cannon_01_arm_4k.jpg");   
+    
     program = ShaderBuilder::Load("../shaders/deferred_rendering/deferred_shader.vert","../shaders/deferred_rendering/deferred_shader.frag");
     gbuffer.shader = ShaderBuilder::Load("../shaders/deferred_rendering/geometry_shader.vert","../shaders/deferred_rendering/geometry_shader.frag");
 
@@ -90,12 +104,16 @@ static void init()
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
+    
+    transformStack.push(glm::mat4(1.0));
+    diffuseTexture.Bind(10);
+    ARMTexture.Bind(11);
+
 }
 
 static double previousTime = 0;
 static double currentTime = 0;
 static double deltaTime = 0;
-std::stack<glm::mat4> transformStack;
 
 static void draw()
 {
@@ -106,7 +124,6 @@ static void draw()
     glDepthMask(GL_TRUE); // ensure depth writes are enabled
     
     glUseProgram(gbuffer.shader);
-    transformStack.push(glm::mat4(1.0));    
     transformStack.push(transformStack.top());
     {
         transformStack.top() = glm::translate(transformStack.top(), translation);
@@ -122,23 +139,13 @@ static void draw()
         mesh1.Dispatch();
     }
     transformStack.pop();
+
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glDisable(GL_DEPTH_TEST);
     glUseProgram(program);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_2D, gbuffer.gPosition);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_2D, gbuffer.gNormal);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_2D, gbuffer.gAlbedoSpec);
-    glActiveTexture(GL_TEXTURE3);
-    glBindTexture(GL_TEXTURE_2D, gbuffer.gDepth);
-    glUniform1i(glGetUniformLocation(program, "gPosition"), 0);
-    glUniform1i(glGetUniformLocation(program, "gNormal"), 1);
-    glUniform1i(glGetUniformLocation(program, "gAlbedoSpec"), 2);
-    glUniform1i(glGetUniformLocation(program, "depth"), 3);
+    gbuffer.ReadBuffer(program);
     glUniform3fv(glGetUniformLocation(program, "CameraPosition"), 1, &camera.eye[0]);
     glUniform1fv(glGetUniformLocation(program, "shine_factor"), 1, &roughness);
     glUniform1fv(glGetUniformLocation(program, "metallic"), 1, &metallic);
@@ -149,12 +156,6 @@ static void draw()
     quadMesh.Dispatch();
     
     camera.Update();
-
-    // Make sure stack is cleared.
-    for (size_t i=0; i <transformStack.size(); ++i)
-    {
-        transformStack.pop();
-    }
 }
 
 int main()
@@ -167,6 +168,7 @@ int main()
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint (GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
 
     glfwSetErrorCallback(error_callback);
 
@@ -223,9 +225,9 @@ int main()
             bCanRender = false;
             auto [newWidth, newHeight] = RendererStatics::WindowDimensions;
             glViewport(0, 0, newWidth, newHeight);
-            gbuffer.RecreateBuffers(newWidth, newHeight);
             camera.aspect_ratio = (float)newWidth / (float)newHeight;
             camera.Update();
+            gbuffer.RecreateBuffers(newWidth, newHeight);
             bResizePending = false;
             bCanRender = true;
         }
@@ -266,20 +268,22 @@ int main()
             ImGui::EndChild();
 
             ImGui::BeginChild("Material", ImVec2(0, 150), ImGuiChildFlags_Border);
-            ImGui::TextUnformatted("Material");
-            ImGui::Separator(); // optional line under the label
+            {
+                ImGui::TextUnformatted("Material");
+                ImGui::Separator();
         
-            ImGui::Text("Roughness"); ImGui::SameLine();
-            ImGui::DragFloat("##sf", &roughness, 0.1f, 0, 1, "%.2f");
+                ImGui::Text("Roughness"); ImGui::SameLine();
+                ImGui::DragFloat("##sf", &roughness, 0.1f, 0, 1, "%.2f");
         
-            ImGui::Text("Metallic"); ImGui::SameLine();
-            ImGui::DragFloat("##ml", &metallic, 0.01f, 0, 1, "%.2f");
+                ImGui::Text("Metallic"); ImGui::SameLine();
+                ImGui::DragFloat("##ml", &metallic, 0.01f, 0, 1, "%.2f");
 
-            ImGui::Text("Fresnel Coefficient"); ImGui::SameLine();
-            ImGui::DragFloat("##fc", &fresnel_coeff, 0.01f, 0, 0, "%.2f");
+                ImGui::Text("Fresnel Coefficient"); ImGui::SameLine();
+                ImGui::DragFloat("##fc", &fresnel_coeff, 0.01f, 0, 0, "%.2f");
 
-            ImGui::Text("Fresnel Factor"); ImGui::SameLine();
-            ImGui::DragFloat("##ff", &fresnel_factor, 0.01f, 0, 0, "%.2f");
+                ImGui::Text("Fresnel Factor"); ImGui::SameLine();
+                ImGui::DragFloat("##ff", &fresnel_factor, 0.01f, 0, 0, "%.2f");
+            }
             ImGui::EndChild();
         }
         ImGui::End();
@@ -298,6 +302,7 @@ int main()
     }
 
     mesh1.Delete();
+    gbuffer.Delete();
     glDeleteProgram(program);
 
     // Cleanup
