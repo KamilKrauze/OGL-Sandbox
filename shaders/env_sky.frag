@@ -4,6 +4,7 @@ in vec3 ViewDir;
 out vec4 FragColor;
 
 uniform sampler2D EnvSphereTexture;
+uniform float exposure;
 
 vec3 RRTAndODTFit(vec3 v) {
     vec3 a = v * (v + 0.0245786) - 0.000090537;
@@ -28,6 +29,7 @@ void main() {
     float u = (phi + 3.14159265359) / (2.0 * 3.14159265359);
     float v = theta / 3.14159265359;
 
-    FragColor.rgb = toneMapACES(texture(EnvSphereTexture, vec2(u+0.35f, 1.0-v)).rgb, 1.0f);
+    vec3 EnvColour = texture(EnvSphereTexture, vec2(u+0.35f, 1.0-v)).rgb;
+    FragColor.rgb = toneMapACES(EnvColour, exposure);
     FragColor.a = 1.0f;
 }

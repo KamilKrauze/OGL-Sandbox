@@ -8,7 +8,6 @@ layout (location = 3) out vec4 gSRMAO;
 layout(binding=10) uniform sampler2D diffuse;
 layout(binding=11) uniform sampler2D ARM;
 
-
 in vec3 FragPos;    // World-space position
 in vec3 Normal;     // World-space normal
 in vec2 TexCoords;  // Texture coordinates

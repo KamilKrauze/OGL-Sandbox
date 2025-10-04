@@ -19,6 +19,7 @@ uniform float metallic;
 uniform float light_intensity;
 uniform float fresnel_coeff;
 uniform float fresnel_factor;
+uniform float exposure;
 
 vec3 ALBEDO;
 vec4 SRMAO;
@@ -204,7 +205,7 @@ void main()
         irradiance += sampleColour;
     }
     irradiance /= float(SAMPLE_COUNT);
-    irradiance = toneMapACES(irradiance, 1.0f);
+    irradiance = toneMapACES(irradiance, exposure);
     
     float ROUGHNESS = max(0.1, (SRMAO.g) * shine_factor);
 

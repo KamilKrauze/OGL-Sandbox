@@ -67,6 +67,7 @@ float roughness = 1.0f;
 float metallic = 0.0f;
 float fresnel_coeff = 0.05f;
 float fresnel_factor = 1.0f;
+float exposure = 1.0f;
 
 glm::vec3 translation = glm::vec3(0,-0.75,0);
 glm::vec3 rotation = glm::vec3(0 ,glm::radians(45.0), 0);
@@ -160,6 +161,8 @@ static void draw()
     glUniform1i(glGetUniformLocation(skyShader, "EnvSphereTexture"), 0);
     glUniformMatrix4fv(glGetUniformLocation(skyShader, "view"), 1, GL_FALSE, &camera.view[0][0]);
     glUniformMatrix4fv(glGetUniformLocation(skyShader, "projection"), 1, GL_FALSE, &camera.projection[0][0]);
+    glUniform1fv(glGetUniformLocation(skyShader, "exposure"), 1, &exposure);
+
     envSky.Dispatch();
     ENV_Texture.Unbind();
 
@@ -175,6 +178,7 @@ static void draw()
     glUniform1fv(glGetUniformLocation(program, "light_intensity"), 1, &light_intensity);
     glUniform1fv(glGetUniformLocation(program, "fresnel_coeff"), 1, &fresnel_coeff);
     glUniform1fv(glGetUniformLocation(program, "fresnel_factor"), 1, &fresnel_factor);
+    glUniform1fv(glGetUniformLocation(program, "exposure"), 1, &exposure);
     quadMesh.Dispatch();
     ENV_Texture.Unbind();
 
@@ -311,6 +315,16 @@ int main()
 
                 ImGui::Text("Fresnel Factor"); ImGui::SameLine();
                 ImGui::DragFloat("##ff", &fresnel_factor, 0.01f, 0, 0, "%.2f");
+            }
+            ImGui::EndChild();
+            
+            ImGui::BeginChild("Env Tonemapping", ImVec2(0, 100), ImGuiChildFlags_Border);
+            {
+                ImGui::TextUnformatted("Env Tonemapping");
+                ImGui::Separator();
+
+                ImGui::Text("Exposure"); ImGui::SameLine();
+                ImGui::DragFloat("##exp", &exposure, 0.001f, 0, 0, "%.4f");
             }
             ImGui::EndChild();
         }
