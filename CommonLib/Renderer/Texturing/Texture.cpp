@@ -42,7 +42,7 @@
 //     Unbind();
 // }
 //
-void Texture::CreateTextureUnit(int _binding, const char* fp, TextureSpec spec)
+void Texture::CreateTextureUnit(const char* fp, TextureSpec spec)
 {
     if (textureObj > 0)
     {
@@ -59,6 +59,8 @@ void Texture::CreateTextureUnit(int _binding, const char* fp, TextureSpec spec)
         glCreateTextures(GL_TEXTURE_2D, 1, &textureObj);
 
         glTextureStorage2D(textureObj, spec.mipLevels, spec.internalFormat, width, height);
+        glTextureParameteri(textureObj, GL_TEXTURE_WRAP_S, spec.wrappingMethod);
+        glTextureParameteri(textureObj, GL_TEXTURE_WRAP_T, spec.wrappingMethod);
 
         if (spec.type == GL_FLOAT)
         {
@@ -68,16 +70,19 @@ void Texture::CreateTextureUnit(int _binding, const char* fp, TextureSpec spec)
         {
             glTextureSubImage2D(textureObj, 0, 0, 0, width, height, spec.format, spec.type, static_cast<unsigned char*>(rawData));
         }
+        
         if (spec.generateMips)
         {
+            glTextureParameteri(textureObj, GL_TEXTURE_MIN_FILTER, spec.minificationFilter);
+            glTextureParameteri(textureObj, GL_TEXTURE_MAG_FILTER, spec.magnificationFilter);
             glGenerateTextureMipmap(textureObj);
         }
-        glTextureParameteri(textureObj, GL_TEXTURE_WRAP_S, spec.wrappingMethod);
-        glTextureParameteri(textureObj, GL_TEXTURE_WRAP_T, spec.wrappingMethod);
-        glTextureParameteri(textureObj, GL_TEXTURE_MIN_FILTER, spec.minificationFilter);
-        glTextureParameteri(textureObj, GL_TEXTURE_MAG_FILTER, spec.magnificationFilter);
+        else
+        {
+            glTextureParameteri(textureObj, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTextureParameteri(textureObj, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        }
 
-        Bind(_binding);
         stbi_image_free(rawData);
     }
     else
@@ -85,7 +90,6 @@ void Texture::CreateTextureUnit(int _binding, const char* fp, TextureSpec spec)
         LOG_ERROR("Failed to load texture image");
         stbi_image_free(rawData);
     }
-    Unbind();
 }
 
 void Texture::Bind(int _binding)

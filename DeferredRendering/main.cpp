@@ -30,13 +30,16 @@
 static GLFWwindow* window;
 
 GLuint program = 0;
+GLuint skyShader = 0;
 
 InstancedMesh mesh1{};
 InstancedMesh quadMesh{};
+InstancedMesh envSky{};
 Camera camera;
 
 Texture diffuseTexture;
 Texture ARMTexture; // AO, Roughness, Metallic
+Texture ENV_Texture;
 
 static std::vector<glm::vec3> quadVertices = {
     // positions 
@@ -65,7 +68,7 @@ float metallic = 0.0f;
 float fresnel_coeff = 0.05f;
 float fresnel_factor = 1.0f;
 
-glm::vec3 translation = glm::vec3(0,-0.1,0);
+glm::vec3 translation = glm::vec3(0,-0.75,0);
 glm::vec3 rotation = glm::vec3(0 ,glm::radians(45.0), 0);
 glm::vec3 scale = glm::vec3(1);
 std::stack<glm::mat4> transformStack;
@@ -83,17 +86,24 @@ static void init()
     WindowResizeEvent.Bind(&gbuffer, &GBuffer::RecreateBuffersOnWindowResize);
     
     VertexData data1{};
-    // MeshLoaders::Static::ImportOBJ(data1, std::string_view("../meshes/aston_vantage2018.obj"));
     MeshLoaders::Static::ImportOBJ(data1, std::string_view("../meshes/cannon_01.obj"));
     mesh1 = std::move(data1);
     mesh1.Build();
 
-    diffuseTexture.CreateTextureUnit(10, "../textures/cannon/cannon_01_diff_4k.jpg");
-    ARMTexture.CreateTextureUnit(11, "../textures/cannon/cannon_01_arm_4k.jpg");   
+    VertexData data2{};
+    MeshLoaders::Static::ImportOBJ(data2, std::string_view("../meshes/env_sphere.obj"));
+    envSky = std::move(data2);
+    envSky.Build();
+    
+    diffuseTexture.CreateTextureUnit("../textures/cannon/cannon_01_diff_4k.jpg");
+    ARMTexture.CreateTextureUnit("../textures/cannon/cannon_01_arm_4k.jpg");
+    ENV_Texture.CreateTextureUnit("../textures/env/hdri/sunflowers_puresky_4k.hdr",
+        TextureSpec(Repeat, Linear, NearestMipBlendTexel, GL_RGB32F, GL_RGB, GL_FLOAT, 1, false));
     
     program = ShaderBuilder::Load("../shaders/deferred_rendering/deferred_shader.vert","../shaders/deferred_rendering/deferred_shader.frag");
     gbuffer.shader = ShaderBuilder::Load("../shaders/deferred_rendering/geometry_shader.vert","../shaders/deferred_rendering/geometry_shader.frag");
-
+    skyShader = ShaderBuilder::Load("../shaders/env_sky.vert","../shaders/env_sky.frag");
+    
     quadMesh.vertices = quadVertices;
     quadMesh.texCoords = quadUVs;
     quadMesh.indices = quadIndices;
@@ -104,11 +114,8 @@ static void init()
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
-    
-    transformStack.push(glm::mat4(1.0));
-    diffuseTexture.Bind(10);
-    ARMTexture.Bind(11);
 
+    transformStack.push(glm::mat4(1.0));
 }
 
 static double previousTime = 0;
@@ -124,6 +131,8 @@ static void draw()
     glDepthMask(GL_TRUE); // ensure depth writes are enabled
     
     glUseProgram(gbuffer.shader);
+    diffuseTexture.Bind(10);
+    ARMTexture.Bind(11);
     transformStack.push(transformStack.top());
     {
         transformStack.top() = glm::translate(transformStack.top(), translation);
@@ -139,23 +148,42 @@ static void draw()
         mesh1.Dispatch();
     }
     transformStack.pop();
+    diffuseTexture.Unbind();
+    ARMTexture.Unbind();
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
-
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glUseProgram(skyShader);
+    glDisable(GL_DEPTH_TEST);
+    glActiveTexture(GL_TEXTURE0);
+    ENV_Texture.Bind(0);
+    glUniform1i(glGetUniformLocation(skyShader, "EnvSphereTexture"), 0);
+    glUniformMatrix4fv(glGetUniformLocation(skyShader, "view"), 1, GL_FALSE, &camera.view[0][0]);
+    glUniformMatrix4fv(glGetUniformLocation(skyShader, "projection"), 1, GL_FALSE, &camera.projection[0][0]);
+    envSky.Dispatch();
+    ENV_Texture.Unbind();
+
+    // glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glDisable(GL_DEPTH_TEST);
     glUseProgram(program);
     gbuffer.ReadBuffer(program);
+    ENV_Texture.Bind(10);
+    glUniform1i(glGetUniformLocation(program, "EnvSphereTexture"), 10);
     glUniform3fv(glGetUniformLocation(program, "CameraPosition"), 1, &camera.eye[0]);
     glUniform1fv(glGetUniformLocation(program, "shine_factor"), 1, &roughness);
     glUniform1fv(glGetUniformLocation(program, "metallic"), 1, &metallic);
     glUniform1fv(glGetUniformLocation(program, "light_intensity"), 1, &light_intensity);
     glUniform1fv(glGetUniformLocation(program, "fresnel_coeff"), 1, &fresnel_coeff);
     glUniform1fv(glGetUniformLocation(program, "fresnel_factor"), 1, &fresnel_factor);
-
     quadMesh.Dispatch();
+    ENV_Texture.Unbind();
+
     
     camera.Update();
+
+    // Restore depth write
+    glDepthMask(GL_TRUE);
+    glDepthFunc(GL_LESS);        // restore default depth test
 }
 
 int main()
@@ -164,7 +192,7 @@ int main()
     {
         return EXIT_FAILURE;
     }
-    
+
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);

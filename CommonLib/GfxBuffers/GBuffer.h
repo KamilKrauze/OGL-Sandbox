@@ -27,7 +27,7 @@ public:
     unsigned int gNormal = 0;
     unsigned int gSRMAO = 0; // Specular, Roughness, Metallic, Ambient Occlusion.
     unsigned int gDepth = 0;
-    std::vector<GLuint> attachments = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
+    std::vector<GLenum> attachments = { GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3 };
 };
 
 #endif//! GBUFFER_HPP

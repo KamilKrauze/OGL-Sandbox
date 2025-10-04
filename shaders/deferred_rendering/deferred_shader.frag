@@ -11,6 +11,8 @@ uniform sampler2D gNormal;
 uniform sampler2D gSRMAO;
 uniform sampler2D depth;
 
+uniform sampler2D EnvSphereTexture;
+
 uniform vec3 CameraPosition;
 uniform float shine_factor;
 uniform float metallic;
@@ -139,6 +141,35 @@ vec3 toneMapACES(vec3 color, float exposure) {
     return pow(color, vec3(1.0/2.2)); // gamma to sRGB
 }
 
+vec2 sampleEquirect(vec3 dir) {
+    float phi = atan(dir.z, dir.x); // longitude
+    float theta = asin(dir.y);      // latitude
+    vec2 uv = vec2(phi / (2.0 * 3.1415926) + 0.5, theta / 3.1415926 + 0.5);
+    return uv;
+}
+
+float rand(vec2 n){
+    return fract(sin(dot(n, vec2(127.1, 311.7))) * 43758.5453123);
+}
+
+vec3 hemisphereSample(vec3 normal, vec2 xi) {
+    // xi = random numbers in [0,1]
+    float phi = 2.0 * 3.1415926 * xi.x;
+    float cosTheta = sqrt(1.0 - xi.y);  // cosine-weighted
+    float sinTheta = sqrt(1.0 - cosTheta * cosTheta);
+
+    // spherical -> cartesian
+    vec3 tangentSample = vec3(sinTheta * cos(phi), sinTheta * sin(phi), cosTheta);
+
+    // create tangent space basis
+    vec3 up = abs(normal.z) < 0.999 ? vec3(0.0,0.0,1.0) : vec3(1.0,0.0,0.0);
+    vec3 tangentX = normalize(cross(up, normal));
+    vec3 tangentY = cross(normal, tangentX);
+
+    // transform sample to world space
+    return tangentX * tangentSample.x + tangentY * tangentSample.y + normal * tangentSample.z;
+}
+
 void main()
 {   
     ALBEDO = texture(gAlbedoEmissive, TexCoords).rgb;
@@ -158,7 +189,24 @@ void main()
     vec3 V = normalize(CameraPosition - PIXEL_POSITION);
     vec3 R = reflect(-PIXEL_POSITION, N);
     vec3 H = (normalize(L + V));
-    float ROUGHNESS = max(0.01, SRMAO.b * SRMAO.g * shine_factor);
+
+    const vec2 ENV_UV = sampleEquirect(L);
+    vec3 irradiance = vec3(0.0);
+    const int SAMPLE_COUNT = 64;
+    for(int i = 0; i < SAMPLE_COUNT; ++i) {
+        vec2 xi = vec2(
+            rand(gl_FragCoord.xy + float(i)*vec2(12.9898,78.233)),
+            rand(gl_FragCoord.xy + float(i)*vec2(39.346, 98.123))
+        );
+        vec3 sampleDir = hemisphereSample(N, xi);
+        vec2 uv = sampleEquirect(sampleDir);
+        vec3 sampleColour =  texture(EnvSphereTexture, uv).rgb;
+        irradiance += sampleColour;
+    }
+    irradiance /= float(SAMPLE_COUNT);
+    irradiance = toneMapACES(irradiance, 1.0f);
+    
+    float ROUGHNESS = max(0.1, (SRMAO.g) * shine_factor);
 
     float cosTheta = max(dot(N,V), 0);
 //    fragColour = vec4((lambert_diffuse(ALBEDO, light_intensity, L,N) + blinn_phong_specular(light_intensity, ROUGHNESS, L, N, H)), 1);
@@ -172,8 +220,7 @@ void main()
     
     vec3 diffuse = burley_diffuse(N, L, V, H, ALBEDO * SRMAO.a, ROUGHNESS);
     vec3 specular = cook_torrance_brdf(N, V, L, H, vec3(fresnel_coeff), ROUGHNESS);
-
-    fragColour.rgb = (diffuse * vec3(1-(SRMAO.b - metallic))) + (specular * mix(vec3(1.0), ALBEDO, (SRMAO.b - metallic))) * light_intensity + vec3(0.001, 0.01, 0.09);
+    fragColour.rgb = (diffuse * vec3(1-(SRMAO.b - metallic))) + (specular * mix(vec3(1.0), ALBEDO, (SRMAO.b - metallic))) * light_intensity + (ALBEDO * irradiance);
 //    fragColour.rgb = toneMapACES(fragColour.rgb, 1);
     fragColour.a = 1;
 }

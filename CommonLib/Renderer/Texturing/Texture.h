@@ -40,13 +40,13 @@ struct TextureSpec
 
 public:
     WrappingMode wrappingMethod = Repeat;
-    FilterMode minificationFilter = Trilinear;
-    FilterMode magnificationFilter = NearestMipBlendTexel;
+    FilterMode minificationFilter = Linear;
+    FilterMode magnificationFilter = Linear;
     uint32_t internalFormat = GL_RGBA8;
     uint32_t format = GL_RGB;
     uint32_t type = GL_UNSIGNED_BYTE;
-    int32_t mipLevels = 1;
-    bool generateMips = false;
+    int32_t mipLevels = 4;
+    bool generateMips = true;
 };
 
 class Texture
@@ -56,7 +56,7 @@ public:
     ~Texture() = default;
 public:
     // void CreateTextureUnit(int _binding, const char* fp);
-    void CreateTextureUnit(int _binding, const char* fp, TextureSpec spec = {});
+    void CreateTextureUnit(const char* fp, TextureSpec spec = {});
     void Bind(int _binding);
     void Unbind();
     void Delete();
