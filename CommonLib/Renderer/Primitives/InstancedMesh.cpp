@@ -67,6 +67,14 @@ void InstancedMesh::Build(bool generateMissingNormalData)
         glNamedBufferStorage(m_IBO, indices.size() * sizeof(GLuint), indices.data(), bufferUsage);    
         glVertexArrayElementBuffer(m_VAO, m_IBO);
     }
+
+    vertices.clear(); vertices.reserve(0);
+    colours.clear(); colours.reserve(0);
+    texCoords.clear(); texCoords.reserve(0);
+    lightMapUV.clear(); lightMapUV.reserve(0);
+    normals.clear(); normals.reserve(0);
+    tangents.clear(); tangents.reserve(0);
+    bitangents.clear(); bitangents.reserve(0);
     
     glBindVertexArray(m_VAO);
     glBindVertexArray(0);
@@ -79,12 +87,12 @@ void InstancedMesh::Bind()
 
 void InstancedMesh::Dispatch()
 {
-    glBindVertexArray(m_VAO);
+    Bind();
 
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     glDrawElementsInstanced(GL_TRIANGLES, (GLsizei)indices.size(), GL_UNSIGNED_INT, nullptr, 1);
 
-    glBindVertexArray(0);
+    Unbind();
 }
 
 void InstancedMesh::Unbind()
