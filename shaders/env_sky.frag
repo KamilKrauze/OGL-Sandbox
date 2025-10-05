@@ -20,14 +20,14 @@ vec3 toneMapACES(vec3 color, float exposure) {
 
 void main() {
     vec3 dir = normalize(ViewDir);
-    
+    const float PI = 3.14159265359;
     // Convert direction to spherical coordinates
     float phi   = atan(dir.z, dir.x);      // [-PI, PI]
     float theta = acos(clamp(dir.y, -1.0, 1.0)); // [0, PI]
 
     // Normalize to [0,1] texture coordinates
-    float u = (phi + 3.14159265359) / (2.0 * 3.14159265359);
-    float v = theta / 3.14159265359;
+    float u = (phi + PI) / (2.0 * PI);
+    float v = theta / PI;
 
     vec3 EnvColour = texture(EnvSphereTexture, vec2(u+0.35f, 1.0-v)).rgb;
     FragColor.rgb = toneMapACES(EnvColour, exposure);
