@@ -52,16 +52,14 @@ void Texture::CreateTextureUnit(const char* fp, TextureSpec spec)
 
     int width, height, channels;
     void* rawData = LoadImageFile(fp, spec.type, width, height, channels);
-    
+
+    uint32_t mipLevels = spec.generateMips ? (int)std::floor(std::log2(std::max(width, height))) + 1 : 1;
     if (rawData)
     {
         LOG_INFO("Loaded file '%s' {%d, %d} & Channels: %d", fp+'\n', width, height, channels);
         glCreateTextures(GL_TEXTURE_2D, 1, &textureObj);
 
-        glTextureStorage2D(textureObj, spec.mipLevels, spec.internalFormat, width, height);
-        glTextureParameteri(textureObj, GL_TEXTURE_WRAP_S, spec.wrappingMethod);
-        glTextureParameteri(textureObj, GL_TEXTURE_WRAP_T, spec.wrappingMethod);
-
+        glTextureStorage2D(textureObj, mipLevels, spec.internalFormat, width, height);
         if (spec.type == GL_FLOAT)
         {
             glTextureSubImage2D(textureObj, 0, 0, 0, width, height, spec.format, spec.type, static_cast<float*>(rawData));
@@ -71,17 +69,16 @@ void Texture::CreateTextureUnit(const char* fp, TextureSpec spec)
             glTextureSubImage2D(textureObj, 0, 0, 0, width, height, spec.format, spec.type, static_cast<unsigned char*>(rawData));
         }
         
+        glTextureParameteri(textureObj, GL_TEXTURE_WRAP_S, spec.wrappingMethod);
+        glTextureParameteri(textureObj, GL_TEXTURE_WRAP_T, spec.wrappingMethod);
+        
+        // Fix filters
+        glTextureParameteri(textureObj, GL_TEXTURE_MIN_FILTER,
+            spec.generateMips ? spec.minificationFilter : GL_LINEAR);
+        glTextureParameteri(textureObj, GL_TEXTURE_MAG_FILTER, GL_LINEAR); // always linear or nearest
+
         if (spec.generateMips)
-        {
-            glTextureParameteri(textureObj, GL_TEXTURE_MIN_FILTER, spec.minificationFilter);
-            glTextureParameteri(textureObj, GL_TEXTURE_MAG_FILTER, spec.magnificationFilter);
             glGenerateTextureMipmap(textureObj);
-        }
-        else
-        {
-            glTextureParameteri(textureObj, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTextureParameteri(textureObj, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        }
 
         stbi_image_free(rawData);
     }

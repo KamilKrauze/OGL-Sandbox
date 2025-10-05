@@ -30,7 +30,7 @@ public:
     }
     virtual ~IRenderable() = default;
 public:
-    virtual void Build() = 0;
+    virtual void Build(bool generateMissingNormalData = false) = 0;
     virtual void Bind() = 0;
     virtual void Dispatch() = 0;
     virtual void Unbind() = 0;

@@ -27,12 +27,10 @@ struct TextureSpec
     TextureSpec() = default;
     TextureSpec(WrappingMode wrapMode, FilterMode minFilter,
         FilterMode magFilter, uint32_t internalFmt,
-        uint32_t fileFmt, uint32_t file_data_type,
-        int32_t mips, bool useMips) :
+        uint32_t fileFmt, uint32_t file_data_type, bool useMips) :
     wrappingMethod(wrapMode), minificationFilter(minFilter),
     magnificationFilter(magFilter), internalFormat(internalFmt),
-    format(fileFmt), type(file_data_type),
-    mipLevels(mips), generateMips(useMips) {}
+    format(fileFmt), type(file_data_type), generateMips(useMips) {}
     
     TextureSpec(const TextureSpec&) = default;
     TextureSpec(TextureSpec&&) = default;
@@ -45,7 +43,6 @@ public:
     uint32_t internalFormat = GL_RGBA8;
     uint32_t format = GL_RGB;
     uint32_t type = GL_UNSIGNED_BYTE;
-    int32_t mipLevels = 4;
     bool generateMips = true;
 };
 

@@ -28,12 +28,15 @@ public:
     
 // Graphics API calls
 public:
-    void Build() override;
+    void Build(bool generateMissingNormalData = false) override;
     void Bind() override;
     void Dispatch() override;
     void Unbind() override;
     void Delete() override;
 
+private:
+    void GenerateTangentsAndBiNormals();
+    
 // Raw vertex data 
 public:
     GLenum bufferUsage = GL_MAP_READ_BIT;
@@ -44,7 +47,7 @@ public:
     std::vector<glm::vec2>  lightMapUV;
     std::vector<glm::vec3>  normals;
     std::vector<glm::vec3>  tangents;
-    std::vector<glm::vec3>  binormals;
+    std::vector<glm::vec3>  bitangents;
 };
 
 #endif

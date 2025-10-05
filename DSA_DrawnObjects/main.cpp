@@ -35,7 +35,7 @@ static GLFWwindow* window;
 
 GLuint program = 0;
 
-InstancedMesh mesh1{};
+InstancedMesh SurfaceMesh{};
 InstancedMesh mesh2{};
 Camera camera;
 
@@ -48,11 +48,11 @@ static void init()
     VertexData data2{};
     MeshLoaders::Static::ImportOBJ(data1, std::string_view("../meshes/SmoothMonkey.obj"));
     MeshLoaders::Static::ImportOBJ(data2, std::string_view("../meshes/Monkey.obj"));
-    mesh1 = std::move(data1);
+    SurfaceMesh = std::move(data1);
     mesh2 = std::move(data2);
     program = ShaderBuilder::Load("../shaders/mesh_dsa_draw.vert","../shaders/mesh_dsa_draw.frag");
     
-    mesh1.Build();
+    SurfaceMesh.Build();
     mesh2.Build();
     
     glEnable(GL_DEPTH_TEST);
@@ -87,7 +87,7 @@ static void draw()
         glUniformMatrix4fv(glGetUniformLocation(program, "model"), 1, GL_FALSE, &transformStack.top()[0][0]);
         glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(camera.view * transformStack.top())));
         glUniformMatrix3fv(glGetUniformLocation(program, "normal_matrix"), 1, GL_FALSE, value_ptr(normal_matrix));
-        mesh1.Dispatch();
+        SurfaceMesh.Dispatch();
     }
     transformStack.pop();
     
@@ -164,7 +164,7 @@ int main()
     }
 
     mesh2.Delete();
-    mesh1.Delete();
+    SurfaceMesh.Delete();
     glDeleteProgram(program);
     
     glfwDestroyWindow(window);

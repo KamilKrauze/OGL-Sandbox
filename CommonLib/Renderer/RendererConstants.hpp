@@ -11,7 +11,7 @@ namespace Constants::Renderer
                 uint32_t COLOUR;
                 uint32_t NORMAL;
                 uint32_t TANGENT;
-                uint32_t BINORMAL;
+                uint32_t BITANGENTS;
                 uint32_t UV0; // Texturing
                 uint32_t UV1; // Light/Shadow map
                 uint32_t CUSTOM1; // User-defined. If ANY.
