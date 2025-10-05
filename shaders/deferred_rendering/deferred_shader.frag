@@ -14,7 +14,7 @@ uniform sampler2D depth;
 uniform sampler2D EnvSphereTexture;
 
 uniform vec3 CameraPosition;
-uniform float shine_factor;
+uniform float roughness;
 uniform float metallic;
 uniform float light_intensity;
 uniform float fresnel_coeff;
@@ -207,7 +207,7 @@ void main()
     irradiance /= float(SAMPLE_COUNT);
     irradiance = toneMapACES(irradiance, exposure);
     
-    float ROUGHNESS = max(0.1, (SRMAO.g) * shine_factor);
+    float ROUGHNESS = max(0.1, (SRMAO.g) * roughness);
 
     float cosTheta = max(dot(N,V), 0);
 //    fragColour = vec4((lambert_diffuse(ALBEDO, light_intensity, L,N) + blinn_phong_specular(light_intensity, ROUGHNESS, L, N, H)), 1);
@@ -221,7 +221,7 @@ void main()
     
     vec3 diffuse = burley_diffuse(N, L, V, H, ALBEDO * SRMAO.a, ROUGHNESS);
     vec3 specular = cook_torrance_brdf(N, V, L, H, vec3(fresnel_coeff), ROUGHNESS);
-    fragColour.rgb = (diffuse * vec3(1-(SRMAO.b - metallic))) + (specular * mix(vec3(1.0), ALBEDO, (SRMAO.b - metallic))) * light_intensity + (ALBEDO * irradiance);
+    fragColour.rgb = (diffuse * vec3(1-(SRMAO.b - (1-metallic)))) + (specular * mix(vec3(1.0), ALBEDO, (SRMAO.b - (1-metallic)))) * light_intensity + (ALBEDO * irradiance);
 //    fragColour.rgb = toneMapACES(fragColour.rgb, 1);
     fragColour.a = 1;
 }

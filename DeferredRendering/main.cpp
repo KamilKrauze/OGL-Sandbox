@@ -64,7 +64,7 @@ static std::vector<GLuint> quadIndices =
 
 float light_intensity = 1.0f;
 float roughness = 1.0f;
-float metallic = 0.0f;
+float metallic = 1.0f;
 float fresnel_coeff = 0.05f;
 float fresnel_factor = 1.0f;
 float exposure = 1.0f;
@@ -173,7 +173,7 @@ static void draw()
     ENV_Texture.Bind(10);
     glUniform1i(glGetUniformLocation(program, "EnvSphereTexture"), 10);
     glUniform3fv(glGetUniformLocation(program, "CameraPosition"), 1, &camera.eye[0]);
-    glUniform1fv(glGetUniformLocation(program, "shine_factor"), 1, &roughness);
+    glUniform1fv(glGetUniformLocation(program, "roughness"), 1, &roughness);
     glUniform1fv(glGetUniformLocation(program, "metallic"), 1, &metallic);
     glUniform1fv(glGetUniformLocation(program, "light_intensity"), 1, &light_intensity);
     glUniform1fv(glGetUniformLocation(program, "fresnel_coeff"), 1, &fresnel_coeff);
@@ -305,16 +305,13 @@ int main()
                 ImGui::Separator();
         
                 ImGui::Text("Roughness"); ImGui::SameLine();
-                ImGui::DragFloat("##sf", &roughness, 0.1f, 0, 1, "%.2f");
+                ImGui::DragFloat("##sf", &roughness, 0.1f, 0, 1, "%.3f");
         
                 ImGui::Text("Metallic"); ImGui::SameLine();
-                ImGui::DragFloat("##ml", &metallic, 0.01f, 0, 1, "%.2f");
+                ImGui::DragFloat("##ml", &metallic, 0.01f, 0, 1, "%.3f");
 
                 ImGui::Text("Fresnel Coefficient"); ImGui::SameLine();
-                ImGui::DragFloat("##fc", &fresnel_coeff, 0.01f, 0, 0, "%.2f");
-
-                ImGui::Text("Fresnel Factor"); ImGui::SameLine();
-                ImGui::DragFloat("##ff", &fresnel_factor, 0.01f, 0, 0, "%.2f");
+                ImGui::DragFloat("##fc", &fresnel_coeff, 0.01f, 0, 0, "%.3f");
             }
             ImGui::EndChild();
             
