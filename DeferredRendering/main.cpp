@@ -32,12 +32,13 @@ static GLFWwindow* window;
 GLuint program = 0;
 GLuint sky_shader = 0;
 
-InstancedMesh SurfaceMesh{};
+InstancedMesh CannonMesh{};
 InstancedMesh quadMesh{};
 InstancedMesh envSky{};
 Camera camera;
 
 Texture Diffuse;
+Texture NormalMap;
 Texture ARM; // AO, Roughness, Metallic
 Texture ENV_Texture;
 
@@ -88,8 +89,8 @@ static void init()
     
     VertexData data1{};
     MeshLoaders::Static::ImportOBJ(data1, std::string_view("../meshes/cannon_01.obj"));
-    SurfaceMesh = std::move(data1);
-    SurfaceMesh.Build();
+    CannonMesh = std::move(data1);
+    CannonMesh.Build(true);
 
     VertexData data2{};
     MeshLoaders::Static::ImportOBJ(data2, std::string_view("../meshes/env_sphere.obj"));
@@ -98,8 +99,13 @@ static void init()
     
     Diffuse.CreateTextureUnit("../textures/cannon/cannon_01_diff_4k.jpg");
     ARM.CreateTextureUnit("../textures/cannon/cannon_01_arm_4k.jpg");
+    NormalMap.CreateTextureUnit("../textures/cannon/cannon_01_nor_gl_4k.jpg",
+        TextureSpec(Repeat, Trilinear, Linear,
+            GL_RGB16F, GL_RGB, GL_UNSIGNED_BYTE, true));
+    
     ENV_Texture.CreateTextureUnit("../textures/env/hdri/sunflowers_puresky_4k.hdr",
-        TextureSpec(Repeat, Trilinear, Linear, GL_RGB32F, GL_RGB, GL_FLOAT, true));
+        TextureSpec(Repeat, Trilinear, Linear,
+            GL_RGB32F, GL_RGB, GL_FLOAT, true));
     
     program = ShaderBuilder::Load("../shaders/deferred_rendering/deferred_shader.vert","../shaders/deferred_rendering/deferred_shader.frag");
     gbuffer.shader = ShaderBuilder::Load("../shaders/deferred_rendering/geometry_shader.vert","../shaders/deferred_rendering/geometry_shader.frag");
@@ -134,6 +140,11 @@ static void draw()
     glUseProgram(gbuffer.shader);
     Diffuse.Bind(10);
     ARM.Bind(11);
+    NormalMap.Bind(12);
+    glUniform1i(glGetUniformLocation(gbuffer.shader, "Diffuse"), 10);
+    glUniform1i(glGetUniformLocation(gbuffer.shader, "ARM"), 11);
+    glUniform1i(glGetUniformLocation(gbuffer.shader, "NormalMap"), 12);
+
     transformStack.push(transformStack.top());
     {
         transformStack.top() = glm::translate(transformStack.top(), translation);
@@ -146,11 +157,12 @@ static void draw()
         glUniformMatrix3fv(glGetUniformLocation(gbuffer.shader, "normal_matrix"), 1, GL_FALSE, value_ptr(normal_matrix));
         glUniformMatrix4fv(glGetUniformLocation(gbuffer.shader, "view"), 1, GL_FALSE, &camera.view[0][0]);
         glUniformMatrix4fv(glGetUniformLocation(gbuffer.shader, "projection"), 1, GL_FALSE, &camera.projection[0][0]);
-        SurfaceMesh.Dispatch();
+        CannonMesh.Dispatch();
     }
     transformStack.pop();
     Diffuse.Unbind();
     ARM.Unbind();
+    NormalMap.Unbind();
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -340,7 +352,10 @@ int main()
         previousTime = currentTime;
     }
 
-    SurfaceMesh.Delete();
+    Diffuse.Delete();
+    NormalMap.Delete();
+    ARM.Delete();
+    CannonMesh.Delete();
     gbuffer.Delete();
     glDeleteProgram(program);
 

@@ -218,10 +218,10 @@ void main()
     
     
 //    fragColour = vec4(lambert_diffuse(ALBEDO * SRMAO.a, light_intensity, L,N) + cook_torrance_brdf(N,V,L,H, vec3(fresnel_coeff), ROUGHNESS) * light_intensity * max(dot(N,L), 0.0), 1);
-    
+    float metalness = clamp((SRMAO.b * metallic),0,1);
     vec3 diffuse = burley_diffuse(N, L, V, H, ALBEDO * SRMAO.a, ROUGHNESS);
     vec3 specular = cook_torrance_brdf(N, V, L, H, vec3(fresnel_coeff), ROUGHNESS);
-    fragColour.rgb = (diffuse * vec3(1-(SRMAO.b - (1-metallic)))) + (specular * mix(vec3(1.0), ALBEDO, (SRMAO.b - (1-metallic)))) * light_intensity + (ALBEDO * irradiance);
+    fragColour.rgb = (diffuse * vec3(1-metalness)) + (specular * mix(vec3(1.0), ALBEDO, (metalness))) * light_intensity + (ALBEDO * irradiance);
 //    fragColour.rgb = toneMapACES(fragColour.rgb, 1);
     fragColour.a = 1;
 }

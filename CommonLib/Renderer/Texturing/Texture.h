@@ -38,8 +38,8 @@ struct TextureSpec
 
 public:
     WrappingMode wrappingMethod = Repeat;
-    FilterMode minificationFilter = Linear;
-    FilterMode magnificationFilter = Linear;
+    FilterMode minificationFilter = NearestMipAndTexel;
+    FilterMode magnificationFilter = NearestMipBlendTexel;
     uint32_t internalFormat = GL_RGBA8;
     uint32_t format = GL_RGB;
     uint32_t type = GL_UNSIGNED_BYTE;
