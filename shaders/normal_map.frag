@@ -19,20 +19,6 @@ uniform sampler2D NormalMap;
 
 uniform float light_intensity;
 
-//void main()
-//{
-//    vec3 normal = texture(NormalMap, TEX_COORDS).rgb;
-//    normal = normalize(normal * 2.0 - 1.0f); // Perturb normals;
-//    
-//    vec3 lightpos = vec3(0, 0.5f, -1.0f);
-//    
-//    vec3 lightDir = TBNMatrix * normalize(lightPos - PIXEL_POSITION);
-//    vec3 viewDir  = TBNMatrix * normalize(viewPos - PIXEL_POSITION);
-//    
-//    FragColour.rgb = normal;
-//    FragColour.a = 1.0f;
-//}
-
 void main()
 {
     const vec3 ARM = texture(ARM_Map, TEX_COORDS).rgb;
