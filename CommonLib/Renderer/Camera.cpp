@@ -23,7 +23,7 @@ Camera::Camera(CameraMode _mode, float _aspect_ratio, float _fov, float _near, f
     this->eye = _eye;
     this->centre = _centre;
 
-    view = glm::lookAt(_eye, _centre, up);
+    view = glm::lookAt(eye, eye + centre, up);
 
     this->aspect_ratio = _aspect_ratio;
     this->speed = 0.05f;

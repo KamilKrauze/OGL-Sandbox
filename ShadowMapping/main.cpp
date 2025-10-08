@@ -31,22 +31,21 @@ static GLFWwindow* window;
 GLuint surface_shader = 0;
 GLuint sky_shader = 0;
 
-InstancedMesh SurfaceMesh{};
-Texture Albedo_Map;
-Texture ARM_Map; // AO, Roughness, Metallic
-Texture Normal_Map; // AO, Roughness, Metallic
+InstancedMesh SphereMesh{};
+InstancedMesh PlaneMesh{};
 
 InstancedMesh envSky{};
 Texture ENV_Texture;
 
 Camera camera;
 
-glm::vec3 translation = glm::vec3(0,-0.75,0);
+glm::vec3 translation = glm::vec3(0,-0.570,0);
 glm::vec3 rotation = glm::vec3(0 ,glm::radians(45.0), 0);
-glm::vec3 scale = glm::vec3(1);
+glm::vec3 scale = glm::vec3(0.2f);
 std::stack<glm::mat4> transformStack;
-glm::vec3 light_pos = glm::vec3(0,0.2,1.5);
+glm::vec3 light_pos = glm::vec3(0,0.2,0);
 float light_intensity = 1.0f;
+float exposure = 1.0f;
 
 static void init()
 {
@@ -55,44 +54,38 @@ static void init()
     glDebugMessageCallback(GLErrorCallback, 0);
     
     camera = Camera(Perspective, 1, 70.0f, 0.001f, 1000000.0f, glm::vec3(0, 0, 4), glm::vec3(0, 0, -1));
-    WindowResizeEvent.Bind(&camera, &Camera::UpdateOnWindowResize);
     
     VertexData data1{};
     MeshLoaders::Static::ImportOBJ(data1, std::string_view("../meshes/surface_sphere.obj"));
-    SurfaceMesh = std::move(data1);
-    SurfaceMesh.Build(true);
+    SphereMesh = std::move(data1);
+    SphereMesh.Build();
 
     VertexData data2{};
-    MeshLoaders::Static::ImportOBJ(data2, std::string_view("../meshes/env_sphere.obj"));
-    envSky = std::move(data2);
+    MeshLoaders::Static::ImportOBJ(data2, std::string_view("../meshes/plane.obj"));
+    PlaneMesh = std::move(data2);
+    PlaneMesh.Build();
+
+    VertexData data3{};
+    MeshLoaders::Static::ImportOBJ(data3, std::string_view("../meshes/env_sphere.obj"));
+    envSky = std::move(data3);
     envSky.Build();
-    
-    Albedo_Map .CreateTextureUnit("../textures/surface/aerial_rocks/aerial_rocks_04_diff_2k.jpg",
-    TextureSpec(Repeat, Bilinear, Linear,
-         GL_RGBA8, GL_RGB, GL_UNSIGNED_BYTE,  true));
-    ARM_Map     .CreateTextureUnit("../textures/surface/aerial_rocks/aerial_rocks_04_arm_2k.jpg");
-    Normal_Map  .CreateTextureUnit("../textures/surface/aerial_rocks/aerial_rocks_04_nor_gl_2k.jpg",
-         TextureSpec(Repeat, Bilinear, Linear,
-             GL_RGBA16F, GL_RGB, GL_UNSIGNED_BYTE, true));
     
     ENV_Texture.CreateTextureUnit("../textures/env/hdri/sunflowers_puresky_4k.hdr",
         TextureSpec(Repeat, Linear, Linear, GL_RGB32F, GL_RGB, GL_FLOAT, false));
     
-   surface_shader = ShaderBuilder::Load("../shaders/normal_map.vert","../shaders/normal_map.frag");
-   sky_shader = ShaderBuilder::Load("../shaders/env_sky.vert","../shaders/env_sky.frag");
+    surface_shader = ShaderBuilder::Load("../shaders/shadow_mapping/surface.vert","../shaders/shadow_mapping/surface.frag");
+    sky_shader = ShaderBuilder::Load("../shaders/env_sky.vert","../shaders/env_sky.frag");
     
+    transformStack.push(glm::mat4(1.0));
+
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
-
-    transformStack.push(glm::mat4(1.0));
 }
 
 static double previousTime = 0;
 static double currentTime = 0;
 static double deltaTime = 0;
-
-float exposure = 1.0f;
 
 static void draw()
 {
@@ -104,29 +97,35 @@ static void draw()
     ENV_Texture.Bind(0);
     glActiveTexture(GL_TEXTURE0);
     glUniform1i(glGetUniformLocation(sky_shader, "EnvSphereTexture"), 0);
-    
+
+    // Environmental sky
     glUniformMatrix4fv(glGetUniformLocation(sky_shader, "view"), 1, GL_FALSE, &camera.view[0][0]);
     glUniformMatrix4fv(glGetUniformLocation(sky_shader, "projection"), 1, GL_FALSE, &camera.projection[0][0]);
     glUniform1fv(glGetUniformLocation(sky_shader, "exposure"), 1, &exposure);
     envSky.Dispatch();
     ENV_Texture.Unbind();
-
-
+    
     glEnable(GL_DEPTH_TEST);
     
     glUseProgram(surface_shader);
-    
-    Albedo_Map.Bind(0);
-    glActiveTexture(GL_TEXTURE0);
-    glUniform1i(glGetUniformLocation(surface_shader, "AlbedoMap"), 0);
 
-    ARM_Map.Bind(1);
-    glActiveTexture(GL_TEXTURE1);
-    glUniform1i(glGetUniformLocation(surface_shader, "ARM_Map"), 1);
+    // Plane transform
+    transformStack.push(transformStack.top());
+    {
+        transformStack.top() = glm::translate(transformStack.top(), glm::vec3(0,-0.75,0));
+        transformStack.top() = glm::rotate(transformStack.top(), -glm::radians(0.0f), glm::vec3(1, 0, 0));
+        transformStack.top() = glm::rotate(transformStack.top(), 0.0f, glm::vec3(0, 1, 0));
+        transformStack.top() = glm::rotate(transformStack.top(), 0.0f, glm::vec3(0, 0, 1));
+        glUniformMatrix4fv(glGetUniformLocation(surface_shader, "model"), 1, GL_FALSE, &transformStack.top()[0][0]);
+        glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(camera.view * transformStack.top())));
+        glUniformMatrix3fv(glGetUniformLocation(surface_shader, "normal_matrix"), 1, GL_FALSE, value_ptr(normal_matrix));
+        glUniformMatrix4fv(glGetUniformLocation(surface_shader, "view"), 1, GL_FALSE, &camera.view[0][0]);
+        glUniformMatrix4fv(glGetUniformLocation(surface_shader, "projection"), 1, GL_FALSE, &camera.projection[0][0]);
+    }
+    PlaneMesh.Dispatch();
+    transformStack.pop();
 
-    Normal_Map.Bind(2);
-    glActiveTexture(GL_TEXTURE2);
-    glUniform1i(glGetUniformLocation(surface_shader, "NormalMap"), 2);
+    // Sphere transform
     transformStack.push(transformStack.top());
     {
         transformStack.top() = glm::translate(transformStack.top(), translation);
@@ -140,11 +139,12 @@ static void draw()
         glUniformMatrix4fv(glGetUniformLocation(surface_shader, "view"), 1, GL_FALSE, &camera.view[0][0]);
         glUniformMatrix4fv(glGetUniformLocation(surface_shader, "projection"), 1, GL_FALSE, &camera.projection[0][0]);
     }
+    SphereMesh.Dispatch();
+    transformStack.pop();
+    
     glUniform1fv(glGetUniformLocation(surface_shader, "light_intensity"), 1, &light_intensity);
     glUniform3fv(glGetUniformLocation(surface_shader, "LightPos"), 1, &light_pos[0]);
-    glUniform3fv(glGetUniformLocation(surface_shader, "CameraPos"), 1, &camera.eye[0]);
-    transformStack.pop();
-    SurfaceMesh.Dispatch();
+    glUniform3fv(glGetUniformLocation(surface_shader, "CameraPosition"), 1, &camera.eye[0]);
     
     camera.Update();
 }
@@ -276,6 +276,52 @@ int main()
             ImGui::EndChild();
         }
         ImGui::End();
+
+        ImGui::Begin("Crappy Camera Controls");
+        {
+            ImGui::Columns(2, NULL);
+            ImGui::SetColumnWidth(0, 100);
+            ImGui::Separator();
+            
+            ImGui::Text("Eye"); ImGui::SameLine();
+            ImGui::NextColumn();
+            {
+                ImGui::PushItemWidth(75.0f);
+                ImGui::TextColored({1,0,0,1}, "X");
+                ImGui::SameLine();
+                ImGui::DragFloat("##eye_x", &camera.eye[0], 0.01f,0, 0, "%.2f");
+                ImGui::SameLine();
+                ImGui::TextColored({0,1,0,1}, "Y");
+                ImGui::SameLine();
+                ImGui::DragFloat("##eye_y", &camera.eye[1], 0.01f,0, 0, "%.2f");
+                ImGui::SameLine();
+                ImGui::TextColored({0,0,1,1}, "Z");
+                ImGui::SameLine();
+                ImGui::DragFloat("##eye_z", &camera.eye[2], 0.01f,0, 0, "%.2f");
+                ImGui::PopItemWidth();
+            }
+            ImGui::NextColumn();
+            ImGui::Separator();
+            
+            ImGui::Text("Centre"); ImGui::SameLine();
+            ImGui::NextColumn();
+            {
+                ImGui::PushItemWidth(75.0f);
+                ImGui::TextColored({1,0,0,1}, "X");
+                ImGui::SameLine();
+                ImGui::DragFloat("##centre_x", &camera.centre[0], 0.01f,0, 0, "%.2f");
+                ImGui::SameLine();
+                ImGui::TextColored({0,1,0,1}, "Y");
+                ImGui::SameLine();
+                ImGui::DragFloat("##centre_y", &camera.centre[1], 0.01f,0, 0, "%.2f");
+                ImGui::SameLine();
+                ImGui::TextColored({0,0,1,1}, "Z");
+                ImGui::SameLine();
+                ImGui::DragFloat("##centre_z", &camera.centre[2], 0.01f,0, 0, "%.2f");
+                ImGui::PopItemWidth();
+            }
+        }
+        ImGui::End();
     
         draw();
 
@@ -290,10 +336,10 @@ int main()
         previousTime = currentTime;
     }
 
-    Albedo_Map.Delete();
-    ARM_Map.Delete();
-    Normal_Map.Delete();
-    SurfaceMesh.Delete();
+    ENV_Texture.Delete();
+    envSky.Delete();
+    SphereMesh.Delete();
+    PlaneMesh.Delete();
     glDeleteProgram(surface_shader);
     glDeleteProgram(sky_shader);
 
