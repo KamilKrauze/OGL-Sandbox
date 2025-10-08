@@ -41,11 +41,11 @@ Texture ENV_Texture;
 
 Camera camera;
 
-glm::vec3 translation = glm::vec3(0,-0.75,0);
+glm::vec3 translation = glm::vec3(0,0,0);
 glm::vec3 rotation = glm::vec3(0 ,glm::radians(45.0), 0);
 glm::vec3 scale = glm::vec3(1);
 std::stack<glm::mat4> transformStack;
-glm::vec3 light_pos = glm::vec3(0,0.2,1.5);
+glm::vec3 light_pos = glm::vec3(0,0.2,5);
 float light_intensity = 1.0f;
 
 static void init()
@@ -166,7 +166,7 @@ int main()
 
     float main_scale = ImGui_ImplGlfw_GetContentScaleForMonitor(glfwGetPrimaryMonitor()); // Valid on GLFW 3.3+ only
     auto& [width, height] = RendererStatics::WindowDimensions;
-    window = glfwCreateWindow(width, height, "OpenGL Deferred Rendering (No Transparency)", NULL, NULL);
+    window = glfwCreateWindow(width, height, "OpenGL Normal Mapping", NULL, NULL);
     
     if (!window)
     {
