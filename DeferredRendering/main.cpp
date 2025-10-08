@@ -44,18 +44,18 @@ Texture ENV_Texture;
 
 static std::vector<glm::vec3> quadVertices = {
     // positions 
-   {-1.0f,  1.0f, 0.0f},
-   {-1.0f, -1.0f, 0.0f},
-   {1.0f, -1.0f, 0.0f},
    { 1.0f,  1.0f, 0.0f},
+   {1.0f, -1.0f, 0.0f},
+   {-1.0f, -1.0f, 0.0f},
+   {-1.0f,  1.0f, 0.0f},
 };
 
 static std::vector<glm::vec2> quadUVs =
 {
-    {0.0f, 1.0f},
-    {0.0f, 0.0f},
-    {1.0f, 0.0f},
-    {1.0f, 1.0f},
+    {1.0f, 1.0f}, // vertex 0: top-right
+   {1.0f, 0.0f}, // vertex 1: bottom-right
+   {0.0f, 0.0f}, // vertex 2: bottom-left
+   {0.0f, 1.0f}, // vertex 3: top-left
 };
 
 static std::vector<GLuint> quadIndices =
@@ -83,7 +83,7 @@ static void init()
     glEnable              ( GL_DEBUG_OUTPUT );
     glDebugMessageCallback(GLErrorCallback, 0);
     
-    camera = Camera(Perspective, 1, 70.0f, 0.001f, 1000000.0f, glm::vec3(0, 0, 4), glm::vec3(0, 0, -1));
+    camera = Camera(Perspective, 1, 70.0f, 0.001f, 10000.0f, glm::vec3(0, 0, 4), glm::vec3(0, 0, -1));
     WindowResizeEvent.Bind(&camera, &Camera::UpdateOnWindowResize);
     WindowResizeEvent.Bind(&gbuffer, &GBuffer::RecreateBuffersOnWindowResize);
     
@@ -120,7 +120,6 @@ static void init()
     
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
-    glCullFace(GL_BACK);
 
     transformStack.push(glm::mat4(1.0));
 }
@@ -132,10 +131,12 @@ static double deltaTime = 0;
 static void draw()
 {
     glBindFramebuffer(GL_FRAMEBUFFER, gbuffer.framebuffer);
-    // glClearColor(0.19f, 0.176f, 0.2f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glEnable(GL_DEPTH_TEST);
     glDepthMask(GL_TRUE); // ensure depth writes are enabled
+
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
     
     glUseProgram(gbuffer.shader);
     Diffuse.Bind(10);
@@ -163,6 +164,8 @@ static void draw()
     Diffuse.Unbind();
     ARM.Unbind();
     NormalMap.Unbind();
+
+    glDisable(GL_CULL_FACE);
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

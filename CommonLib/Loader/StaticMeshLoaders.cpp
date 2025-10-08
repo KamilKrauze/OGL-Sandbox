@@ -66,6 +66,7 @@ namespace MeshLoaders::Static
             } 
             else if (type == INDEX) {
                 std::string token;
+                std::vector<GLuint> faceIndices;
                 while (ss >> token) {
                     std::stringstream ss_data(token);
                     std::string data;
@@ -80,19 +81,42 @@ namespace MeshLoaders::Static
                     }
 
                     VertexKey key{ indices[0], indices[1], indices[2] };
-
+                    GLuint finalIndex;
                     auto it = uniqueVertexMap.find(key);
                     if (it != uniqueVertexMap.end()) {
-                        vertInfo.indices.push_back(it->second);
+                        finalIndex = it->second;
                     } else {
-                        GLuint newIndex = static_cast<GLuint>(vertInfo.vertices.size());
+                        finalIndex = static_cast<GLuint>(vertInfo.vertices.size());
                         vertInfo.vertices.push_back(tmp_positions[indices[0]]);
                         if (!tmp_uvs.empty()) vertInfo.texCoords.push_back(tmp_uvs[indices[1]]);
                         if (!tmp_normals.empty()) vertInfo.normals.push_back(tmp_normals[indices[2]]);
-                        vertInfo.indices.push_back(newIndex);
-                        uniqueVertexMap[key] = newIndex;
+
+                        uniqueVertexMap[key] = finalIndex;
                     }
+
+                    faceIndices.push_back(finalIndex);
                 }
+                
+                vertInfo.indices.insert(vertInfo.indices.end(), faceIndices.begin(), faceIndices.end());
+                // if (faceIndices.size() == 3)
+                // {
+                //     std::swap(faceIndices[1], faceIndices[2]);
+                // }
+                // else if (faceIndices.size() >= 3)
+                // {
+                //     for (size_t i = 1; i + 1 < faceIndices.size(); ++i)
+                //     {
+                //         GLuint i0 = faceIndices[0];
+                //         GLuint i1 = faceIndices[i];
+                //         GLuint i2 = faceIndices[i + 1];
+                //         
+                //         std::swap(i1, i2);
+                //
+                //         vertInfo.indices.push_back(i0);
+                //         vertInfo.indices.push_back(i1);
+                //         vertInfo.indices.push_back(i2);
+                //     }
+                // }
             }
         }
         std::cout << "Time taken to load '" << filepath.data()+'\n' << "' - " << std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::high_resolution_clock::now() - start).count() / 1000000.0f << "s\n";

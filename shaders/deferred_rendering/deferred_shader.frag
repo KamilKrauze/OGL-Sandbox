@@ -188,12 +188,12 @@ void main()
     vec3 L = normalize(light_pos - PIXEL_POSITION);
 
     vec3 V = normalize(CameraPosition - PIXEL_POSITION);
-    vec3 R = reflect(-PIXEL_POSITION, N);
+//    vec3 R = reflect(-PIXEL_POSITION, N);
     vec3 H = (normalize(L + V));
 
-    const vec2 ENV_UV = sampleEquirect(L);
-    vec3 irradiance = vec3(0.0);
-    const int SAMPLE_COUNT = 64;
+    const vec2 ENV_UV = sampleEquirect(N);
+    vec3 irradiance = vec3(0);
+    const int SAMPLE_COUNT = 4;
     for(int i = 0; i < SAMPLE_COUNT; ++i) {
         vec2 xi = vec2(
             rand(gl_FragCoord.xy + float(i)*vec2(12.9898,78.233)),
