@@ -29,6 +29,7 @@
 static GLFWwindow* window;
 
 GLuint surface_shader = 0;
+GLuint shadow_shader = 0;
 GLuint sky_shader = 0;
 
 InstancedMesh SphereMesh{};
@@ -43,9 +44,17 @@ glm::vec3 translation = glm::vec3(0,-0.570,0);
 glm::vec3 rotation = glm::vec3(0 ,glm::radians(45.0), 0);
 glm::vec3 scale = glm::vec3(0.2f);
 std::stack<glm::mat4> transformStack;
-glm::vec3 light_pos = glm::vec3(0,0.2,0);
+glm::vec3 light_pos = glm::vec3(2,4,2);
 float light_intensity = 1.0f;
 float exposure = 1.0f;
+
+unsigned int depthMapFBO;
+const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
+unsigned int shadowMap;
+float near_plane = 0.1f, far_plane = 20.0f;
+
+glm::mat4 lightProjection, lightView;
+glm::mat4 lightSpaceMatrix;
 
 static void init()
 {
@@ -74,14 +83,39 @@ static void init()
         TextureSpec(Repeat, Linear, Linear, GL_RGB32F, GL_RGB, GL_FLOAT, false));
     
     surface_shader = ShaderBuilder::Load("../shaders/shadow_mapping/surface.vert","../shaders/shadow_mapping/surface.frag");
+    shadow_shader = ShaderBuilder::Load("../shaders/shadow_mapping/shadow_mapper.vert","../shaders/shadow_mapping/shadow_mapper.frag");
     sky_shader = ShaderBuilder::Load("../shaders/env_sky.vert","../shaders/env_sky.frag");
     
     transformStack.push(glm::mat4(1.0));
 
+    glGenFramebuffers(1, &depthMapFBO);
+    // create depth texture
+    glGenTextures(1, &shadowMap);
+    glBindTexture(GL_TEXTURE_2D, shadowMap);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT, SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+    float borderColor[] = { 1.0, 1.0, 1.0, 1.0 };
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+    // attach depth texture as FBO's depth buffer
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowMap, 0);
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+    
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    glUseProgram(surface_shader);
+    glUniform1i(glGetUniformLocation(surface_shader, "shadowMap"), 0);
+    
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
     glCullFace(GL_BACK);
 }
+
+float lrtb = 5.0f;
 
 static double previousTime = 0;
 static double currentTime = 0;
@@ -89,16 +123,56 @@ static double deltaTime = 0;
 
 static void draw()
 {
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    glClearColor(0.19f, 0.176f, 0.2f, 1.0f);
+    glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+    glBindFramebuffer(GL_FRAMEBUFFER, depthMapFBO);
+    glClear(GL_DEPTH_BUFFER_BIT);
 
+    // Shadow mapping
+    glUseProgram(shadow_shader);
+    lightProjection = glm::ortho(-lrtb, lrtb, -lrtb, lrtb, near_plane, far_plane);
+    lightView = glm::lookAt(light_pos, glm::vec3(0.0f), glm::vec3(0.0, 1.0, 0.0));
+    lightSpaceMatrix = lightProjection * lightView;
+    glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "LightSpaceMatrix"), 1, GL_FALSE, &lightSpaceMatrix[0][0]);
+
+    glEnable(GL_POLYGON_OFFSET_FILL);
+    glPolygonOffset(2.0f, 4.0f);
+
+    // Draw scene from light POV
+    {
+        // plane
+        glm::mat4 model = glm::mat4(1.0f);
+        // model = glm::translate(model, glm::vec3(0,-0.75,0));
+        // glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
+        // PlaneMesh.Dispatch();
+
+        // sphere - We do not need the plane to cast shadows.
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(0.5f, -0.57f, 0.0f));
+        model = glm::rotate(model, rotation.y, glm::vec3(0,1,0));
+        model = glm::scale(model, scale);
+        glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
+        SphereMesh.Dispatch();
+        
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, translation);
+        model = glm::rotate(model, rotation.y, glm::vec3(0,1,0));
+        model = glm::scale(model, scale);
+        glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
+        SphereMesh.Dispatch();
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, 0); // return to default
+
+    auto [SRC_WIDTH, SRC_HEIGHT] = RendererStatics::WindowDimensions;
+    glViewport(0, 0, SRC_WIDTH, SRC_HEIGHT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    // Environmental sky
     glUseProgram(sky_shader);
     glDisable(GL_DEPTH_TEST);
     ENV_Texture.Bind(0);
     glActiveTexture(GL_TEXTURE0);
     glUniform1i(glGetUniformLocation(sky_shader, "EnvSphereTexture"), 0);
-
-    // Environmental sky
     glUniformMatrix4fv(glGetUniformLocation(sky_shader, "view"), 1, GL_FALSE, &camera.view[0][0]);
     glUniformMatrix4fv(glGetUniformLocation(sky_shader, "projection"), 1, GL_FALSE, &camera.projection[0][0]);
     glUniform1fv(glGetUniformLocation(sky_shader, "exposure"), 1, &exposure);
@@ -108,7 +182,10 @@ static void draw()
     glEnable(GL_DEPTH_TEST);
     
     glUseProgram(surface_shader);
-
+    glActiveTexture(GL_TEXTURE0);
+    glBindTexture(GL_TEXTURE_2D, shadowMap);
+    glUniform1i(glGetUniformLocation(surface_shader, "shadowMap"), 0);
+    glUniformMatrix4fv(glGetUniformLocation(surface_shader, "LightSpaceMatrix"), 1, GL_FALSE, &lightSpaceMatrix[0][0]);
     // Plane transform
     transformStack.push(transformStack.top());
     {
@@ -141,6 +218,22 @@ static void draw()
     }
     SphereMesh.Dispatch();
     transformStack.pop();
+
+    transformStack.push(transformStack.top());
+    {
+        transformStack.top() = glm::mat4(1.0f);
+        transformStack.top() = glm::translate(transformStack.top(), glm::vec3(0.5f, -0.57f, 0.0f));
+        transformStack.top() = glm::rotate(transformStack.top(), rotation.y, glm::vec3(0,1,0));
+        transformStack.top() = glm::scale(transformStack.top(), scale);
+        glUniformMatrix4fv(glGetUniformLocation(surface_shader, "model"), 1, GL_FALSE, &transformStack.top()[0][0]);
+        glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(camera.view * transformStack.top())));
+        glUniformMatrix3fv(glGetUniformLocation(surface_shader, "normal_matrix"), 1, GL_FALSE, value_ptr(normal_matrix));
+        glUniformMatrix4fv(glGetUniformLocation(surface_shader, "view"), 1, GL_FALSE, &camera.view[0][0]);
+        glUniformMatrix4fv(glGetUniformLocation(surface_shader, "projection"), 1, GL_FALSE, &camera.projection[0][0]);
+    }
+    SphereMesh.Dispatch();
+    transformStack.pop();
+
     
     glUniform1fv(glGetUniformLocation(surface_shader, "light_intensity"), 1, &light_intensity);
     glUniform3fv(glGetUniformLocation(surface_shader, "LightPos"), 1, &light_pos[0]);
@@ -166,7 +259,7 @@ int main()
 
     float main_scale = ImGui_ImplGlfw_GetContentScaleForMonitor(glfwGetPrimaryMonitor()); // Valid on GLFW 3.3+ only
     auto& [width, height] = RendererStatics::WindowDimensions;
-    window = glfwCreateWindow(width, height, "OpenGL Deferred Rendering (No Transparency)", NULL, NULL);
+    window = glfwCreateWindow(width, height, "OpenGL Shadow Mapping Example", NULL, NULL);
     
     if (!window)
     {
@@ -260,7 +353,7 @@ int main()
                 ImGui::DragFloat("##lit", &light_intensity, 0.001f, 0, 0, "%.4f");
                 
                 ImGui::Text("Light Position"); ImGui::SameLine();
-                ImGui::DragFloat3("##lpos", &light_pos[0], 0.001f, 0, 0, "%.3f");
+                ImGui::DragFloat3("##lpos", &light_pos[0], 0.01f, 0, 0, "%.2f");
             }
             ImGui::EndChild();
 
@@ -322,7 +415,20 @@ int main()
             }
         }
         ImGui::End();
-    
+
+        ImGui::Begin("Crappy Shadow Controls");
+        {
+            ImGui::Text("Ortho Margin"); ImGui::SameLine();
+            ImGui::DragFloat("##ortho", &lrtb, 0.01f, 0, 0, "%.2f");
+
+            ImGui::Text("Light Near Plane"); ImGui::SameLine();
+            ImGui::DragFloat("##near", &near_plane, 0.01f, 0, 0, "%.2f");
+
+            ImGui::Text("Light Far Plane"); ImGui::SameLine();
+            ImGui::DragFloat("##far", &far_plane, 0.01f, 0, 0, "%.2f"); 
+        }
+        ImGui::End();
+
         draw();
 
         // Rendering Gui
