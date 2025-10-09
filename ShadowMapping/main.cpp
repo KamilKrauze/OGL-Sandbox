@@ -32,7 +32,7 @@ GLuint surface_shader = 0;
 GLuint shadow_shader = 0;
 GLuint sky_shader = 0;
 
-InstancedMesh SphereMesh{};
+InstancedMesh InstancedCannonMesh{};
 InstancedMesh PlaneMesh{};
 
 InstancedMesh envSky{};
@@ -40,16 +40,16 @@ Texture ENV_Texture;
 
 Camera camera;
 
-glm::vec3 translation = glm::vec3(0,-0.570,0);
+glm::vec3 translation = glm::vec3(0,-0.765,0);
 glm::vec3 rotation = glm::vec3(0 ,glm::radians(45.0), 0);
-glm::vec3 scale = glm::vec3(0.2f);
+glm::vec3 scale = glm::vec3(1.0f);
 std::stack<glm::mat4> transformStack;
 glm::vec3 light_pos = glm::vec3(2,4,2);
 float light_intensity = 1.0f;
 float exposure = 1.0f;
 
 unsigned int depthMapFBO;
-const unsigned int SHADOW_WIDTH = 512, SHADOW_HEIGHT = 512;
+const unsigned int SHADOW_WIDTH = 2048, SHADOW_HEIGHT = 2048;
 unsigned int shadowMap;
 float near_plane = 0.1f, far_plane = 20.0f;
 
@@ -65,9 +65,9 @@ static void init()
     camera = Camera(Perspective, 1, 70.0f, 0.001f, 1000000.0f, glm::vec3(0, 0, 4), glm::vec3(0, 0, -1));
     
     VertexData data1{};
-    MeshLoaders::Static::ImportOBJ(data1, std::string_view("../meshes/surface_sphere.obj"));
-    SphereMesh = std::move(data1);
-    SphereMesh.Build();
+    MeshLoaders::Static::ImportOBJ(data1, std::string_view("../meshes/cannon_01.obj"));
+    InstancedCannonMesh = std::move(data1);
+    InstancedCannonMesh.Build();
 
     VertexData data2{};
     MeshLoaders::Static::ImportOBJ(data2, std::string_view("../meshes/plane.obj"));
@@ -147,20 +147,13 @@ static void draw()
         // PlaneMesh.Dispatch();
 
         // sphere - We do not need the plane to cast shadows.
-
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0.5f, -0.57f, 0.0f));
-        model = glm::rotate(model, rotation.y, glm::vec3(0,1,0));
-        model = glm::scale(model, scale);
-        glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
-        SphereMesh.Dispatch();
         
         model = glm::mat4(1.0f);
         model = glm::translate(model, translation);
         model = glm::rotate(model, rotation.y, glm::vec3(0,1,0));
         model = glm::scale(model, scale);
         glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
-        SphereMesh.Dispatch();
+        InstancedCannonMesh.Dispatch();
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0); // return to default
 
@@ -217,24 +210,8 @@ static void draw()
         glUniformMatrix4fv(glGetUniformLocation(surface_shader, "view"), 1, GL_FALSE, &camera.view[0][0]);
         glUniformMatrix4fv(glGetUniformLocation(surface_shader, "projection"), 1, GL_FALSE, &camera.projection[0][0]);
     }
-    SphereMesh.Dispatch();
+    InstancedCannonMesh.Dispatch();
     transformStack.pop();
-
-    transformStack.push(transformStack.top());
-    {
-        transformStack.top() = glm::mat4(1.0f);
-        transformStack.top() = glm::translate(transformStack.top(), glm::vec3(0.5f, -0.57f, 0.0f));
-        transformStack.top() = glm::rotate(transformStack.top(), rotation.y, glm::vec3(0,1,0));
-        transformStack.top() = glm::scale(transformStack.top(), scale);
-        glUniformMatrix4fv(glGetUniformLocation(surface_shader, "model"), 1, GL_FALSE, &transformStack.top()[0][0]);
-        glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(camera.view * transformStack.top())));
-        glUniformMatrix3fv(glGetUniformLocation(surface_shader, "normal_matrix"), 1, GL_FALSE, value_ptr(normal_matrix));
-        glUniformMatrix4fv(glGetUniformLocation(surface_shader, "view"), 1, GL_FALSE, &camera.view[0][0]);
-        glUniformMatrix4fv(glGetUniformLocation(surface_shader, "projection"), 1, GL_FALSE, &camera.projection[0][0]);
-    }
-    SphereMesh.Dispatch();
-    transformStack.pop();
-
     
     glUniform1fv(glGetUniformLocation(surface_shader, "light_intensity"), 1, &light_intensity);
     glUniform3fv(glGetUniformLocation(surface_shader, "LightPos"), 1, &light_pos[0]);
@@ -445,7 +422,7 @@ int main()
 
     ENV_Texture.Delete();
     envSky.Delete();
-    SphereMesh.Delete();
+    InstancedCannonMesh.Delete();
     PlaneMesh.Delete();
     glDeleteProgram(surface_shader);
     glDeleteProgram(sky_shader);
