@@ -406,6 +406,9 @@ int main()
 
         ImGui::Begin("Crappy Shadow Controls");
         {
+                ImGui::Image((ImTextureID)(intptr_t)shadowMap,
+                    ImVec2(256, 256), ImVec2(0,1), ImVec2(1,0));
+            
             ImGui::Text("PCF Kernel Width"); ImGui::SameLine();
             ImGui::DragFloat("##pcf", &pcf_kernel_width, 1.0f, 0, 0, "%.1f");
             
