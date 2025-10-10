@@ -33,7 +33,12 @@ GLuint shadow_shader = 0;
 GLuint sky_shader = 0;
 
 InstancedMesh InstancedCannonMesh{};
+Texture Cannon_Albedo;
+Texture Cannon_AO;
+
 InstancedMesh PlaneMesh{};
+Texture Plane_Albedo;
+Texture Plane_AO;
 
 InstancedMesh envSky{};
 Texture ENV_Texture;
@@ -79,9 +84,18 @@ static void init()
     MeshLoaders::Static::ImportOBJ(data3, std::string_view("../meshes/env_sphere.obj"));
     envSky = std::move(data3);
     envSky.Build();
+
+    Cannon_Albedo.CreateTextureUnit("../textures/cannon/cannon_01_diff_4k.jpg");
+    Cannon_AO.CreateTextureUnit("../textures/cannon/cannon_01_arm_4k.jpg");
+
+    Plane_Albedo.CreateTextureUnit("../textures/surface/aerial_rocks/aerial_rocks_04_diff_2k.jpg",
+        TextureSpec(Repeat, Trilinear, Linear,
+            GL_RGBA8, GL_RGB, GL_UNSIGNED_BYTE, true));
+    Plane_AO.CreateTextureUnit("../textures/surface/aerial_rocks/aerial_rocks_04_arm_2k.jpg");
     
     ENV_Texture.CreateTextureUnit("../textures/env/hdri/sunflowers_puresky_4k.hdr",
-        TextureSpec(Repeat, Linear, Linear, GL_RGB32F, GL_RGB, GL_FLOAT, false));
+        TextureSpec(Repeat, Linear, Linear
+            , GL_RGB32F, GL_RGB, GL_FLOAT, false));
     
     surface_shader = ShaderBuilder::Load("../shaders/shadow_mapping/surface.vert","../shaders/shadow_mapping/surface.frag");
     shadow_shader = ShaderBuilder::Load("../shaders/shadow_mapping/shadow_mapper.vert","../shaders/shadow_mapping/shadow_mapper.frag");
@@ -142,10 +156,12 @@ static void draw()
     // Draw scene from light POV
     {
         // plane
+        glDisable(GL_CULL_FACE);
         glm::mat4 model = glm::mat4(1.0f);
-        // model = glm::translate(model, glm::vec3(0,-0.75,0));
-        // glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
-        // PlaneMesh.Dispatch();
+        model = glm::translate(model, glm::vec3(0,-0.75,0));
+        glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
+        PlaneMesh.Dispatch();
+        glEnable(GL_CULL_FACE);
 
         // sphere - We do not need the plane to cast shadows.
         
@@ -189,6 +205,14 @@ static void draw()
     glUniformMatrix4fv(glGetUniformLocation(surface_shader, "LightSpaceMatrix"), 1, GL_FALSE, &lightSpaceMatrix[0][0]);
     glUniform1fv(glGetUniformLocation(surface_shader, "pcf_kernel_width"), 1, &pcf_kernel_width);
     // Plane transform
+    glActiveTexture(GL_TEXTURE1);
+    Plane_Albedo.Bind(1);
+    glUniform1i(glGetUniformLocation(surface_shader, "AlbedoMap"), 1);
+    glActiveTexture(GL_TEXTURE2);
+    Plane_AO.Bind(2);
+    float uvscale = 35.0f;
+    glUniform1i(glGetUniformLocation(surface_shader, "AOMap"), 2);
+    glUniform1fv(glGetUniformLocation(surface_shader, "UVScale"), 1, &uvscale);
     transformStack.push(transformStack.top());
     {
         transformStack.top() = glm::translate(transformStack.top(), glm::vec3(0,-0.75,0));
@@ -205,8 +229,18 @@ static void draw()
     }
     PlaneMesh.Dispatch();
     transformStack.pop();
+    Plane_Albedo.Unbind();
+    Plane_AO.Unbind();
 
     // Sphere transform
+    glActiveTexture(GL_TEXTURE1);
+    Cannon_Albedo.Bind(1);
+    glUniform1i(glGetUniformLocation(surface_shader, "AlbedoMap"), 1);
+    glActiveTexture(GL_TEXTURE2);
+    Cannon_AO.Bind(2);
+    glUniform1i(glGetUniformLocation(surface_shader, "AOMap"), 2);
+    uvscale = 1.0f;
+    glUniform1fv(glGetUniformLocation(surface_shader, "UVScale"), 1, &uvscale);
     transformStack.push(transformStack.top());
     {
         transformStack.top() = glm::translate(transformStack.top(), translation);
@@ -222,6 +256,8 @@ static void draw()
     }
     InstancedCannonMesh.Dispatch();
     transformStack.pop();
+    Cannon_Albedo.Unbind();
+    Cannon_AO.Unbind();
     
     glUniform1fv(glGetUniformLocation(surface_shader, "light_intensity"), 1, &light_intensity);
     glUniform3fv(glGetUniformLocation(surface_shader, "LightPos"), 1, &light_pos[0]);
@@ -406,8 +442,8 @@ int main()
 
         ImGui::Begin("Crappy Shadow Controls");
         {
-                ImGui::Image((ImTextureID)(intptr_t)shadowMap,
-                    ImVec2(256, 256), ImVec2(0,1), ImVec2(1,0));
+            ImGui::Image((ImTextureID)(intptr_t)shadowMap,
+                ImVec2(256, 256), ImVec2(0,1), ImVec2(1,0));
             
             ImGui::Text("PCF Kernel Width"); ImGui::SameLine();
             ImGui::DragFloat("##pcf", &pcf_kernel_width, 1.0f, 0, 0, "%.1f");
@@ -438,8 +474,16 @@ int main()
 
     ENV_Texture.Delete();
     envSky.Delete();
+    Cannon_Albedo.Delete();
+    Cannon_AO.Delete();
+    Plane_Albedo.Delete();
+    Plane_AO.Delete();
     InstancedCannonMesh.Delete();
     PlaneMesh.Delete();
+    
+    glDeleteTextures(1, &shadowMap);
+    glDeleteFramebuffers(1, &depthMapFBO);
+    glDeleteProgram(shadow_shader);
     glDeleteProgram(surface_shader);
     glDeleteProgram(sky_shader);
 

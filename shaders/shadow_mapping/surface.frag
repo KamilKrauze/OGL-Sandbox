@@ -7,16 +7,19 @@ in vec2 TexCoords;
 in vec4 PIXEL_POSITION_LIGHT_SPACE;
 
 uniform sampler2D shadowMap;
+uniform sampler2D AlbedoMap;
+uniform sampler2D AOMap;
 uniform float pcf_kernel_width;
 
 uniform float light_intensity;
 uniform vec3 LightPos;
 uniform vec3 CameraPosition;
+uniform float UVScale;
 
 out vec4 fragColour;
 
 const vec3 random_colour_that_is_deprecated = vec3(0.985, 0.6, 0.5);
-vec3 ambient_colour = vec3(0.1);
+
 
 vec3 lambert_diffuse(in vec3 albedo, in float intensity, in float dotNL)
 {
@@ -93,14 +96,14 @@ void main()
     const float dotNL = dot(N,L);
     const float dotNH = dot(N,H);
 
-    float lightDistance = distance(PIXEL_POSITION.xyz, L);
+    vec3 albedo = texture(AlbedoMap, TexCoords * UVScale).rgb;
+    vec3 ao = texture(AOMap, TexCoords * UVScale).rrr;
+    
+    vec3 ambient_colour = albedo * vec3(0.3);
     
     float shadow = ShadowCalculation(shadowMap, PIXEL_POSITION_LIGHT_SPACE, dotNL, L);
     
-    fragColour.rgb = (ambient_colour + (1-shadow)) * (lambert_diffuse(FRAG_COLOUR.rgb, light_intensity, dotNL) +
+    fragColour.rgb = (ambient_colour + (1-(shadow * (albedo * 2.2)))) * (lambert_diffuse((albedo * ao), light_intensity, dotNL) +
     blinn_phong_specular(light_intensity, 128.0f, dotNH));
-//    fragColour.rgb = texture(shadowMap, PIXEL_POSITION_LIGHT_SPACE.xy).rrr;
-//    fragColour.rgb = vec3(texture(shadowMap, TexCoords).r);
-    
     fragColour.a = 1.0f;
 }
