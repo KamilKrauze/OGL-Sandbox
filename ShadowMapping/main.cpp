@@ -49,9 +49,10 @@ float light_intensity = 1.0f;
 float exposure = 1.0f;
 
 unsigned int depthMapFBO;
-const unsigned int SHADOW_WIDTH = 2048, SHADOW_HEIGHT = 2048;
+const unsigned int SHADOW_WIDTH = 1024, SHADOW_HEIGHT = 1024;
 unsigned int shadowMap;
 float near_plane = 0.1f, far_plane = 20.0f;
+float pcf_kernel_width = 5;
 
 glm::mat4 lightProjection, lightView;
 glm::mat4 lightSpaceMatrix;
@@ -167,10 +168,16 @@ static void draw()
     ENV_Texture.Bind(0);
     glActiveTexture(GL_TEXTURE0);
     glUniform1i(glGetUniformLocation(sky_shader, "EnvSphereTexture"), 0);
-    glUniformMatrix4fv(glGetUniformLocation(sky_shader, "view"), 1, GL_FALSE, &camera.view[0][0]);
-    glUniformMatrix4fv(glGetUniformLocation(sky_shader, "projection"), 1, GL_FALSE, &camera.projection[0][0]);
-    glUniform1fv(glGetUniformLocation(sky_shader, "exposure"), 1, &exposure);
+    transformStack.push(transformStack.top());
+    {
+        transformStack.top() = glm::scale(transformStack.top(), glm::vec3(5.0f));
+        glUniformMatrix4fv(glGetUniformLocation(sky_shader, "model"), 1, GL_FALSE, &transformStack.top()[0][0]);
+        glUniformMatrix4fv(glGetUniformLocation(sky_shader, "view"), 1, GL_FALSE, &camera.view[0][0]);
+        glUniformMatrix4fv(glGetUniformLocation(sky_shader, "projection"), 1, GL_FALSE, &camera.projection[0][0]);
+        glUniform1fv(glGetUniformLocation(sky_shader, "exposure"), 1, &exposure);
+    }
     envSky.Dispatch();
+    transformStack.pop();
     ENV_Texture.Unbind();
     
     glEnable(GL_DEPTH_TEST);
@@ -180,6 +187,7 @@ static void draw()
     glBindTexture(GL_TEXTURE_2D, shadowMap);
     glUniform1i(glGetUniformLocation(surface_shader, "shadowMap"), 0);
     glUniformMatrix4fv(glGetUniformLocation(surface_shader, "LightSpaceMatrix"), 1, GL_FALSE, &lightSpaceMatrix[0][0]);
+    glUniform1fv(glGetUniformLocation(surface_shader, "pcf_kernel_width"), 1, &pcf_kernel_width);
     // Plane transform
     transformStack.push(transformStack.top());
     {
@@ -187,6 +195,8 @@ static void draw()
         transformStack.top() = glm::rotate(transformStack.top(), -glm::radians(0.0f), glm::vec3(1, 0, 0));
         transformStack.top() = glm::rotate(transformStack.top(), 0.0f, glm::vec3(0, 1, 0));
         transformStack.top() = glm::rotate(transformStack.top(), 0.0f, glm::vec3(0, 0, 1));
+        transformStack.top() = glm::scale(transformStack.top(), glm::vec3(5.0));
+
         glUniformMatrix4fv(glGetUniformLocation(surface_shader, "model"), 1, GL_FALSE, &transformStack.top()[0][0]);
         glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(camera.view * transformStack.top())));
         glUniformMatrix3fv(glGetUniformLocation(surface_shader, "normal_matrix"), 1, GL_FALSE, value_ptr(normal_matrix));
@@ -396,6 +406,9 @@ int main()
 
         ImGui::Begin("Crappy Shadow Controls");
         {
+            ImGui::Text("PCF Kernel Width"); ImGui::SameLine();
+            ImGui::DragFloat("##pcf", &pcf_kernel_width, 1.0f, 0, 0, "%.1f");
+            
             ImGui::Text("Ortho Margin"); ImGui::SameLine();
             ImGui::DragFloat("##ortho", &lrtb, 0.01f, 0, 0, "%.2f");
 

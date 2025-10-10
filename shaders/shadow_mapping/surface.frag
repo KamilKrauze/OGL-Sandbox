@@ -7,6 +7,7 @@ in vec2 TexCoords;
 in vec4 PIXEL_POSITION_LIGHT_SPACE;
 
 uniform sampler2D shadowMap;
+uniform float pcf_kernel_width;
 
 uniform float light_intensity;
 uniform vec3 LightPos;
@@ -28,7 +29,7 @@ vec3 blinn_phong_specular(in float intensity, in float shininess, in float dotNH
     return pow(max(dotNH, 0.0), shininess) * FRAG_COLOUR.rgb * intensity;
 }
 
-float ShadowCalculation(in sampler2D shadowMapRef, in vec4 fragPosLightSpace, in float dotNL)
+float ShadowCalculation(in sampler2D shadowMapRef, in vec4 fragPosLightSpace, in float dotNL, in vec3 L)
 {
     float shadowing = 0.0f;
     
@@ -49,17 +50,31 @@ float ShadowCalculation(in sampler2D shadowMapRef, in vec4 fragPosLightSpace, in
     // float shadow = currentDepth - bias > closestDepth  ? 1.0 : 0.0;
     // PCF
     vec2 texelSize = 1.0 / textureSize(shadowMapRef, 0);
-    const int size = 1;
-    for(int x = -size; x <= size; ++x)
+    const float pcf_half_size = floor(pcf_kernel_width/2.0);
+
+    // world distance from fragment to light
+    float fragDist = length(LightPos - PIXEL_POSITION.xyz);
+
+    const float maxShadowDistance = 200.0f; // tweak for your scene
+    float lightDistance = distance(PIXEL_POSITION.xyz, L);
+    float distance_lerp = clamp(fragDist / maxShadowDistance, 0.0, 1.0);
+
+    // dynamic kernel radius: 1 near, pcf_half_size far
+    float size = mix(1.0, pcf_half_size, distance_lerp);
+    
+    int taps = 0;
+    for(float x = -size; x <= size; ++x)
     {
-        for(int y = -size; y <= size; ++y)
+        for(float y = -size; y <= size; ++y)
         {
             float pcfDepth = texture(shadowMap, projCoords.xy + vec2(x, y) * texelSize).r;
             shadowing += currentDepth - bias > pcfDepth  ? 1.0 : 0.0;
+            taps++;
         }
     }
     // keep the shadow at 0.0 when outside the far_plane region of the light's frustum.
-    shadowing /= 9; // <=> 1/9
+//    shadowing /= (pcf_kernel_width * pcf_kernel_width); // <=> 1/(kernel_width^2)
+    shadowing /= float(taps); // <=> 1/(kernel_width^2)
     if (projCoords.z > 1.0f)
     {
         return 0.0f;
@@ -80,7 +95,7 @@ void main()
 
     float lightDistance = distance(PIXEL_POSITION.xyz, L);
     
-    float shadow = ShadowCalculation(shadowMap, PIXEL_POSITION_LIGHT_SPACE, dotNL);
+    float shadow = ShadowCalculation(shadowMap, PIXEL_POSITION_LIGHT_SPACE, dotNL, L);
     
     fragColour.rgb = (ambient_colour + (1-shadow)) * (lambert_diffuse(FRAG_COLOUR.rgb, light_intensity, dotNL) +
     blinn_phong_specular(light_intensity, 128.0f, dotNH));

@@ -6,6 +6,7 @@ layout(location=5) in vec2 VTEX_COORDS;
 
 uniform mat4 projection;
 uniform mat4 view;
+uniform mat4 model;
 
 out vec3 ViewDir;
 
@@ -16,6 +17,6 @@ void main()
     ViewDir = rotView * VERT_POS;
 
     // push sky to far depth (so it always renders behind geometry)
-    vec4 pos = projection * vec4(VERT_POS, 1.0);
+    vec4 pos = projection * view * model * vec4(VERT_POS, 1.0);
     gl_Position = pos.xyww;
 }
