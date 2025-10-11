@@ -107,6 +107,9 @@ static double deltaTime = 0;
 static void draw()
 {
     transmission_buffer.Bind();
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE);  // additive blend (accumulate RGB)
+    glBlendEquation(GL_FUNC_ADD);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // Shadow mapping

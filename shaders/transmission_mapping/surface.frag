@@ -41,19 +41,18 @@ float ShadowCalculation(in sampler2D shadowMapRef, in vec4 fragPosLightSpace, in
     // outside light frustum => unshadowed
     if (projCoords.x < 0.0 || projCoords.x > 1.0 ||
     projCoords.y < 0.0 || projCoords.y > 1.0 ||
-    projCoords.z < 0.0)
+    projCoords.z < 0.0 || projCoords.z > 1.0)
     {
         return 0.0;
     }
-    
-    // get closest depth value from light's perspective (using [0,1] range fragPosLight as coords)
-    float closestDepth = texture(shadowMapRef, projCoords.xy).r;
-
     // get depth of current fragment from light's perspective
     float currentDepth = projCoords.z;
-
+    
     // calculate bias (based on depth map resolution and slope)
     float bias = max(0.01 * (1.0 - dotNL), 0.005);
+
+    // get closest depth value from light's perspective (using [0,1] range fragPosLight as coords)
+    float closestDepth = texture(shadowMapRef, projCoords.xy).r;
 
     // check whether current frag pos is in shadow
     // float shadow = currentDepth - bias > closestDepth  ? 1.0 : 0.0;
@@ -86,10 +85,6 @@ float ShadowCalculation(in sampler2D shadowMapRef, in vec4 fragPosLightSpace, in
     // keep the shadow at 0.0 when outside the far_plane region of the light's frustum.
 //    shadowing /= (pcf_kernel_width * pcf_kernel_width); // <=> 1/(kernel_width^2)
     shadowing /= float(taps); // <=> 1/(kernel_width^2)
-    if (projCoords.z > 1.0f)
-    {
-        return 0.0f;
-    }
     
     return shadowing;
 }
@@ -108,10 +103,10 @@ void main()
     
     float shadow = ShadowCalculation(ShadowMap, PIXEL_POSITION_LIGHT_SPACE, dotNL, L);
     
-    vec3 diffuse = lambert_diffuse(vec3(1,1,1), light_intensity, dotNL);
+    vec3 diffuse = lambert_diffuse(vec3(1.0), light_intensity, dotNL);
     vec3 specular = blinn_phong_specular(light_intensity, 128.0f, dotNH);
-    vec3 directLighting = diffuse + specular;
-
+    vec3 baseLighting = diffuse + specular;
+    
     // compute transmission sampling only if within light projection
     vec3 projCoords = (PIXEL_POSITION_LIGHT_SPACE.xyz / PIXEL_POSITION_LIGHT_SPACE.w) * 0.5 + 0.5;
     vec4 trans = vec4(0.0); // default no transmission
@@ -122,9 +117,17 @@ void main()
         trans = texture(TransmissionMap, uv);
     }
     
-    vec3 transmittedLighting = directLighting * (trans.rgb * trans.a);
-    vec3 lit = mix(directLighting, transmittedLighting, shadow);
-    fragColour.rgb = ambient_colour + lit;
+    float shadowInv = 1.0 - shadow;
     
+    float transmissionAmount = clamp(trans.a, 0.0, 1.0);
+    vec3 transmittedLight = trans.rgb * transmissionAmount;
+    
+    vec3 litPart = baseLighting * shadowInv;
+    vec3 transmittedPart = baseLighting * transmittedLight;
+    
+    vec3 finalLighting = mix(litPart, transmittedPart, transmissionAmount);
+    finalLighting += ambient_colour * transmittedLight * 0.3;
+    
+    fragColour.rgb = finalLighting;
     fragColour.a = 1.0f;
 }
