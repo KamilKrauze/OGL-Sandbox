@@ -159,6 +159,10 @@ static void draw()
         glDisable(GL_CULL_FACE);
         glm::mat4 model = glm::mat4(1.0f);
         model = glm::translate(model, glm::vec3(0,-0.75,0));
+        model = glm::rotate(model, -glm::radians(0.0f), glm::vec3(1, 0, 0));
+        model = glm::rotate(model, 0.0f, glm::vec3(0, 1, 0));
+        model = glm::rotate(model, 0.0f, glm::vec3(0, 0, 1));
+        model = glm::scale(model, glm::vec3(5.0));
         glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
         PlaneMesh.Dispatch();
         glEnable(GL_CULL_FACE);
@@ -171,6 +175,15 @@ static void draw()
         model = glm::scale(model, scale);
         glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
         InstancedCannonMesh.Dispatch();
+
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, glm::vec3(-1,0,1));
+        model = glm::rotate(model, -glm::radians(-90.0f), glm::vec3(1,0,0));
+        model = glm::rotate(model, -glm::radians(0.0f), glm::vec3(0,1,0));
+        model = glm::rotate(model, -glm::radians(-45.0f), glm::vec3(0,0,1));
+        model = glm::scale(model, glm::vec3(0.25f));
+        glUniformMatrix4fv(glGetUniformLocation(shadow_shader, "model"), 1, GL_FALSE, glm::value_ptr(model));
+        PlaneMesh.Dispatch();
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0); // return to default
 
@@ -229,6 +242,24 @@ static void draw()
     }
     PlaneMesh.Dispatch();
     transformStack.pop();
+
+    transformStack.push(transformStack.top());
+    {
+        transformStack.top() = glm::translate(transformStack.top(), glm::vec3(-1,0,1));
+        transformStack.top() = glm::rotate(transformStack.top(), -glm::radians(-90.0f), glm::vec3(1,0,0));
+        transformStack.top() = glm::rotate(transformStack.top(), -glm::radians(0.0f), glm::vec3(0,1,0));
+        transformStack.top() = glm::rotate(transformStack.top(), -glm::radians(-45.0f), glm::vec3(0,0,1));
+        transformStack.top() = glm::scale(transformStack.top(), glm::vec3(0.25f));
+
+        glUniformMatrix4fv(glGetUniformLocation(surface_shader, "model"), 1, GL_FALSE, &transformStack.top()[0][0]);
+        glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(camera.view * transformStack.top())));
+        glUniformMatrix3fv(glGetUniformLocation(surface_shader, "normal_matrix"), 1, GL_FALSE, value_ptr(normal_matrix));
+        glUniformMatrix4fv(glGetUniformLocation(surface_shader, "view"), 1, GL_FALSE, &camera.view[0][0]);
+        glUniformMatrix4fv(glGetUniformLocation(surface_shader, "projection"), 1, GL_FALSE, &camera.projection[0][0]);
+    }
+    PlaneMesh.Dispatch();
+    transformStack.pop();
+
     Plane_Albedo.Unbind();
     Plane_AO.Unbind();
 

@@ -43,7 +43,7 @@ public:
     float near_plane = 0.1f;
     float far_plane = 20.0f;
     float pcf_kernel_width = 5;
-    float projection_fov = 5.0f;
+    float projection_fov = 1.5f;
     glm::mat4 lightSpaceMatrix;
 
     uint32_t shaderProgram;

@@ -47,7 +47,7 @@ glm::vec3 translation = glm::vec3(0,-0.765,0);
 glm::vec3 rotation = glm::vec3(0 ,glm::radians(45.0), 0);
 glm::vec3 scale = glm::vec3(1.0f);
 std::stack<glm::mat4> transformStack;
-glm::vec3 light_pos = glm::vec3(2,4,2);
+glm::vec3 light_pos = glm::vec3(-2,1,2);
 float light_intensity = 1.0f;
 float exposure = 1.0f;
 
@@ -107,29 +107,29 @@ static double deltaTime = 0;
 static void draw()
 {
     transmission_buffer.Bind();
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_ONE, GL_ONE);  // additive blend (accumulate RGB)
-    glBlendEquation(GL_FUNC_ADD);
+    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // Shadow mapping
     glUseProgram(transmission_buffer.shaderProgram);
     transmission_buffer.Update(light_pos);
 
+    glm::mat4 model = glm::mat4(1.0f);
+    
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE);  // additive blend (accumulate RGB)
+    glBlendEquation(GL_FUNC_ADD);
+
+
+    glUseProgram(transmission_buffer.shaderProgram);
     // Draw scene from light POV
     {
-        // plane
-        glDisable(GL_CULL_FACE);
-        glm::mat4 model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(0,-0.75,0));
-        model = glm::scale(model, glm::vec3(25.0f));
-        glUniform4fv(glGetUniformLocation(transmission_buffer.shaderProgram, "TranslucentColour"), 1, glm::value_ptr(glm::vec4(1,1,1,1)));
-        glUniformMatrix4fv(glGetUniformLocation(transmission_buffer.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
-        PlaneMesh.Dispatch();
-        glEnable(GL_CULL_FACE);
 
+        // glCullFace(GL_FRONT);
+
+        glDisable(GL_CULL_FACE);
         model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(-1,0,1));
+        model = glm::translate(model, glm::vec3(-1,-0.2,1));
         model = glm::rotate(model, -glm::radians(-90.0f), glm::vec3(1,0,0));
         model = glm::rotate(model, -glm::radians(0.0f), glm::vec3(0,1,0));
         model = glm::rotate(model, -glm::radians(-45.0f), glm::vec3(0,0,1));
@@ -137,18 +137,24 @@ static void draw()
         glUniform4fv(glGetUniformLocation(transmission_buffer.shaderProgram, "TranslucentColour"), 1, glm::value_ptr(glm::vec4(1,1,0,0.6)));
         glUniformMatrix4fv(glGetUniformLocation(transmission_buffer.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
         PlaneMesh.Dispatch();
+        glEnable(GL_CULL_FACE);
         
         model = glm::mat4(1.0f);
         model = glm::translate(model, translation);
         model = glm::rotate(model, rotation.y, glm::vec3(0,1,0));
         model = glm::scale(model, scale);
-        glUniform4fv(glGetUniformLocation(transmission_buffer.shaderProgram, "TranslucentColour"), 1, glm::value_ptr(glm::vec4(1,0,0,1)));
+        glUniform4fv(glGetUniformLocation(transmission_buffer.shaderProgram, "TranslucentColour"), 1, glm::value_ptr(glm::vec4(1,0,0,0.8)));
         glUniformMatrix4fv(glGetUniformLocation(transmission_buffer.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
         InstancedCannonMesh.Dispatch();
+        
+        // glCullFace(GL_BACK);
     }
+    glDepthMask(GL_TRUE);
+    glDisable(GL_BLEND);
     transmission_buffer.Unbind();
+    
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
+    
     // Environmental sky
     glUseProgram(sky_shader);
     glDisable(GL_DEPTH_TEST);
