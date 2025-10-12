@@ -107,47 +107,63 @@ static double deltaTime = 0;
 static void draw()
 {
     transmission_buffer.Bind();
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClearColor(1.0f, 1.0f, 1.0f, 0.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // Shadow mapping
     glUseProgram(transmission_buffer.shaderProgram);
     transmission_buffer.Update(light_pos);
 
-    glm::mat4 model = glm::mat4(1.0f);
-    
+    // Blend transmission light in a way that original is preserved
+    glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    glDepthMask(GL_TRUE);
     glEnable(GL_BLEND);
-    glBlendFunc(GL_ONE, GL_ONE);  // additive blend (accumulate RGB)
+    glBlendFunc(GL_ONE, GL_DST_ALPHA);
     glBlendEquation(GL_FUNC_ADD);
 
-
+    
     glUseProgram(transmission_buffer.shaderProgram);
     // Draw scene from light POV
     {
+        transformStack.push(transformStack.top());
+        {
+            transformStack.top() = glm::translate(transformStack.top(), glm::vec3(-1,-0.2,2));
+            transformStack.top() = glm::rotate(transformStack.top(), -glm::radians(-90.0f), glm::vec3(1,0,0));
+            transformStack.top() = glm::rotate(transformStack.top(), -glm::radians(0.0f), glm::vec3(0,1,0));
+            transformStack.top() = glm::rotate(transformStack.top(), -glm::radians(-45.0f), glm::vec3(0,0,1));
+            transformStack.top() = glm::scale(transformStack.top(), glm::vec3(0.25f));
+            glUniform4fv(glGetUniformLocation(transmission_buffer.shaderProgram, "TranslucentColour"), 1, glm::value_ptr(glm::vec4(0,0,1,0.5)));
+            glUniformMatrix4fv(glGetUniformLocation(transmission_buffer.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(transformStack.top()));
+            PlaneMesh.Dispatch();
+            glEnable(GL_CULL_FACE);
+        }
+        transformStack.pop();
 
-        // glCullFace(GL_FRONT);
+        transformStack.push(transformStack.top());
+        {
+            glDisable(GL_CULL_FACE);
+            transformStack.top() = glm::translate(transformStack.top(), glm::vec3(-1,-0.2,1));
+            transformStack.top() = glm::rotate(transformStack.top(), -glm::radians(-90.0f), glm::vec3(1,0,0));
+            transformStack.top() = glm::rotate(transformStack.top(), -glm::radians(0.0f), glm::vec3(0,1,0));
+            transformStack.top() = glm::rotate(transformStack.top(), -glm::radians(-45.0f), glm::vec3(0,0,1));
+            transformStack.top() = glm::scale(transformStack.top(), glm::vec3(0.25f));
+            glUniform4fv(glGetUniformLocation(transmission_buffer.shaderProgram, "TranslucentColour"), 1, glm::value_ptr(glm::vec4(0,1,0,0.5)));
+            glUniformMatrix4fv(glGetUniformLocation(transmission_buffer.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(transformStack.top()));
+            PlaneMesh.Dispatch();
+        }
+        transformStack.pop();
 
-        glDisable(GL_CULL_FACE);
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, glm::vec3(-1,-0.2,1));
-        model = glm::rotate(model, -glm::radians(-90.0f), glm::vec3(1,0,0));
-        model = glm::rotate(model, -glm::radians(0.0f), glm::vec3(0,1,0));
-        model = glm::rotate(model, -glm::radians(-45.0f), glm::vec3(0,0,1));
-        model = glm::scale(model, glm::vec3(0.25f));
-        glUniform4fv(glGetUniformLocation(transmission_buffer.shaderProgram, "TranslucentColour"), 1, glm::value_ptr(glm::vec4(1,1,0,0.6)));
-        glUniformMatrix4fv(glGetUniformLocation(transmission_buffer.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
-        PlaneMesh.Dispatch();
-        glEnable(GL_CULL_FACE);
-        
-        model = glm::mat4(1.0f);
-        model = glm::translate(model, translation);
-        model = glm::rotate(model, rotation.y, glm::vec3(0,1,0));
-        model = glm::scale(model, scale);
-        glUniform4fv(glGetUniformLocation(transmission_buffer.shaderProgram, "TranslucentColour"), 1, glm::value_ptr(glm::vec4(1,0,0,0.8)));
-        glUniformMatrix4fv(glGetUniformLocation(transmission_buffer.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
-        InstancedCannonMesh.Dispatch();
-        
-        // glCullFace(GL_BACK);
+        transformStack.push(transformStack.top());
+        {
+            transformStack.top() = glm::translate(transformStack.top(), translation);
+            transformStack.top() = glm::rotate(transformStack.top(), rotation.y, glm::vec3(0,1,0));
+            transformStack.top() = glm::scale(transformStack.top(), scale);
+            glUniform4fv(glGetUniformLocation(transmission_buffer.shaderProgram, "TranslucentColour"), 1, glm::value_ptr(glm::vec4(1,0,0,0.8)));
+            glUniformMatrix4fv(glGetUniformLocation(transmission_buffer.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(transformStack.top()));
+            InstancedCannonMesh.Dispatch();
+        }
+        transformStack.pop();
+
     }
     glDepthMask(GL_TRUE);
     glDisable(GL_BLEND);
@@ -176,7 +192,7 @@ static void draw()
     glEnable(GL_DEPTH_TEST);
     
     glUseProgram(surface_shader);
-    transmission_buffer.BindData(surface_shader, 0, 1);
+    transmission_buffer.BindData(surface_shader, 0, 1, 2);
     glUniform1fv(glGetUniformLocation(surface_shader, "pcf_kernel_width"), 1, &transmission_buffer.pcf_kernel_width);
     // Plane transform
     transformStack.push(transformStack.top());
@@ -200,6 +216,23 @@ static void draw()
     transformStack.push(transformStack.top());
     {
         transformStack.top() = glm::translate(transformStack.top(), glm::vec3(-1,0,1));
+        transformStack.top() = glm::rotate(transformStack.top(), -glm::radians(-90.0f), glm::vec3(1, 0, 0));
+        transformStack.top() = glm::rotate(transformStack.top(), -glm::radians(-0.0f), glm::vec3(0, 1, 0));
+        transformStack.top() = glm::rotate(transformStack.top(), -glm::radians(-45.0f), glm::vec3(0, 0, 1));
+        transformStack.top() = glm::scale(transformStack.top(), glm::vec3(0.25));
+
+        glUniformMatrix4fv(glGetUniformLocation(surface_shader, "model"), 1, GL_FALSE, &transformStack.top()[0][0]);
+        glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(camera.view * transformStack.top())));
+        glUniformMatrix3fv(glGetUniformLocation(surface_shader, "normal_matrix"), 1, GL_FALSE, value_ptr(normal_matrix));
+        glUniformMatrix4fv(glGetUniformLocation(surface_shader, "view"), 1, GL_FALSE, &camera.view[0][0]);
+        glUniformMatrix4fv(glGetUniformLocation(surface_shader, "projection"), 1, GL_FALSE, &camera.projection[0][0]);
+    }
+    PlaneMesh.Dispatch();
+    transformStack.pop();
+
+    transformStack.push(transformStack.top());
+    {
+        transformStack.top() = glm::translate(transformStack.top(), glm::vec3(-1,0,2));
         transformStack.top() = glm::rotate(transformStack.top(), -glm::radians(-90.0f), glm::vec3(1, 0, 0));
         transformStack.top() = glm::rotate(transformStack.top(), -glm::radians(-0.0f), glm::vec3(0, 1, 0));
         transformStack.top() = glm::rotate(transformStack.top(), -glm::radians(-45.0f), glm::vec3(0, 0, 1));
@@ -418,6 +451,9 @@ int main()
                 ImVec2(256, 256), ImVec2(0,1), ImVec2(1,0));
             ImGui::SameLine();
             ImGui::Image((ImTextureID)(intptr_t)transmission_buffer.transmissionMap,
+                ImVec2(256, 256), ImVec2(0,1), ImVec2(1,0));
+            ImGui::SameLine();
+            ImGui::Image((ImTextureID)(intptr_t)transmission_buffer.lightDepthMap,
                 ImVec2(256, 256), ImVec2(0,1), ImVec2(1,0));
             
             ImGui::Text("PCF Kernel Width"); ImGui::SameLine();

@@ -8,11 +8,13 @@ in vec4 PIXEL_POSITION_LIGHT_SPACE;
 
 uniform sampler2D ShadowMap;
 uniform sampler2D TransmissionMap;
+uniform sampler2D LightDepthMap;
 uniform float pcf_kernel_width;
 
 uniform float light_intensity;
 uniform vec3 LightPos;
 uniform vec3 CameraPosition;
+uniform vec4 TranslucentColour;
 
 out vec4 fragColour;
 
@@ -113,6 +115,11 @@ vec3 TransmissiveCalculation(in sampler2D transmissionMapRef, in sampler2D shado
     return result;
 }
 
+vec3 saturate(in vec3 value)
+{
+    return clamp(value, vec3(0.0), vec3(1.0));
+}
+
 void main()
 {
     const vec3 N = normalize(FRAG_NORMAL);
@@ -125,13 +132,14 @@ void main()
 
     vec3 ambient_colour = vec3(0.3);
 
-    float shadow = ShadowCalculation(ShadowMap, PIXEL_POSITION_LIGHT_SPACE, dotNL, L);
-    float shadowInv = 1.0-shadow;
+    float depthShadow = ShadowCalculation(ShadowMap, PIXEL_POSITION_LIGHT_SPACE, dotNL, L);
+    float opaqueShadow = ShadowCalculation(LightDepthMap, PIXEL_POSITION_LIGHT_SPACE, dotNL, L);
     vec3 light = TransmissiveCalculation(TransmissionMap, ShadowMap, PIXEL_POSITION_LIGHT_SPACE, dotNL, L);
-
-    vec3 diffuse = lambert_diffuse((vec3(1.0f)), light_intensity, dotNL);
-    vec3 specular = blinn_phong_specular(light_intensity, 128.0f, dotNH);
+    vec3 projectedLight = saturate(light * (vec3(1.0) - saturate(vec3(depthShadow * opaqueShadow))));
     
-    fragColour.rgb = (ambient_colour + shadowInv + light) * ( diffuse + specular );
+    vec3 diffuse = lambert_diffuse(vec3(0.9), light_intensity, dotNL);
+    vec3 specular = blinn_phong_specular(light_intensity, 68.0f, dotNH);
+    
+    fragColour.rgb = (ambient_colour + (projectedLight * light_intensity)) * ( diffuse + specular );
     fragColour.a = 1.0f;
 }

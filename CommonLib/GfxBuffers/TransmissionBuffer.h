@@ -29,7 +29,7 @@ public:
      * @param shader Specified shader
      * @param binding Shader binding location
      */
-    void BindData(uint32_t& shader, const int32_t& shadowMapBinding, const int32_t& transmissionMapBinding);
+    void BindData(uint32_t& shader, const int32_t& shadowMapBinding, const int32_t& transmissionMapBinding, const int32_t& lightDepthMapBinding);
     
     /**
      * Updates internal values
@@ -49,6 +49,7 @@ public:
     uint32_t shaderProgram;
     uint32_t shadowMap;
     uint32_t transmissionMap;
+    uint32_t lightDepthMap;
 
 private:
     glm::mat4 lightProjection;
