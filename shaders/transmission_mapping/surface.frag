@@ -130,16 +130,16 @@ void main()
     const float dotNL = dot(N,L);
     const float dotNH = dot(N,H);
 
-    vec3 ambient_colour = vec3(0.3);
+    vec3 ambient_colour = TranslucentColour.rgb * vec3(0.3);
 
     float depthShadow = ShadowCalculation(ShadowMap, PIXEL_POSITION_LIGHT_SPACE, dotNL, L);
     float opaqueShadow = ShadowCalculation(LightDepthMap, PIXEL_POSITION_LIGHT_SPACE, dotNL, L);
     vec3 light = TransmissiveCalculation(TransmissionMap, ShadowMap, PIXEL_POSITION_LIGHT_SPACE, dotNL, L);
     vec3 projectedLight = saturate(light * (vec3(1.0) - saturate(vec3(depthShadow * opaqueShadow))));
     
-    vec3 diffuse = lambert_diffuse(vec3(0.9), light_intensity, dotNL);
+    vec3 diffuse = lambert_diffuse(TranslucentColour.rgb + TranslucentColour.a, light_intensity, dotNL);
     vec3 specular = blinn_phong_specular(light_intensity, 68.0f, dotNH);
     
     fragColour.rgb = (ambient_colour + (projectedLight * light_intensity)) * ( diffuse + specular );
-    fragColour.a = 1.0f;
+    fragColour.a = TranslucentColour.a;
 }

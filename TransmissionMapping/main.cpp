@@ -194,6 +194,9 @@ static void draw()
     glUseProgram(surface_shader);
     transmission_buffer.BindData(surface_shader, 0, 1, 2);
     glUniform1fv(glGetUniformLocation(surface_shader, "pcf_kernel_width"), 1, &transmission_buffer.pcf_kernel_width);
+
+
+    glUniform4fv(glGetUniformLocation(surface_shader, "TranslucentColour"), 1, glm::value_ptr(glm::vec4(1,1,1,1)));
     // Plane transform
     transformStack.push(transformStack.top());
     {
@@ -212,6 +215,29 @@ static void draw()
     PlaneMesh.Dispatch();
     transformStack.pop();
 
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_COLOR);
+    glBlendEquation(GL_FUNC_ADD);
+
+    glUniform4fv(glGetUniformLocation(surface_shader, "TranslucentColour"), 1, glm::value_ptr(glm::vec4(1,0,0,0.5)));
+    // Sphere transform
+    transformStack.push(transformStack.top());
+    {
+        transformStack.top() = glm::translate(transformStack.top(), translation);
+        transformStack.top() = glm::rotate(transformStack.top(), rotation.x, glm::vec3(1, 0, 0));
+        transformStack.top() = glm::rotate(transformStack.top(), rotation.y, glm::vec3(0, 1, 0));
+        transformStack.top() = glm::rotate(transformStack.top(), rotation.z, glm::vec3(0, 0, 1));
+        transformStack.top() = glm::scale(transformStack.top(), scale);
+        glUniformMatrix4fv(glGetUniformLocation(surface_shader, "model"), 1, GL_FALSE, &transformStack.top()[0][0]);
+        glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(camera.view * transformStack.top())));
+        glUniformMatrix3fv(glGetUniformLocation(surface_shader, "normal_matrix"), 1, GL_FALSE, value_ptr(normal_matrix));
+        glUniformMatrix4fv(glGetUniformLocation(surface_shader, "view"), 1, GL_FALSE, &camera.view[0][0]);
+        glUniformMatrix4fv(glGetUniformLocation(surface_shader, "projection"), 1, GL_FALSE, &camera.projection[0][0]);
+    }
+    InstancedCannonMesh.Dispatch();
+    transformStack.pop();
+    
+    glUniform4fv(glGetUniformLocation(surface_shader, "TranslucentColour"), 1, glm::value_ptr(glm::vec4(0,1,0,0.5)));
     // Plane transform
     transformStack.push(transformStack.top());
     {
@@ -230,6 +256,7 @@ static void draw()
     PlaneMesh.Dispatch();
     transformStack.pop();
 
+    glUniform4fv(glGetUniformLocation(surface_shader, "TranslucentColour"), 1, glm::value_ptr(glm::vec4(0,0,1,0.5)));
     transformStack.push(transformStack.top());
     {
         transformStack.top() = glm::translate(transformStack.top(), glm::vec3(-1,0,2));
@@ -245,23 +272,6 @@ static void draw()
         glUniformMatrix4fv(glGetUniformLocation(surface_shader, "projection"), 1, GL_FALSE, &camera.projection[0][0]);
     }
     PlaneMesh.Dispatch();
-    transformStack.pop();
-
-    // Sphere transform
-    transformStack.push(transformStack.top());
-    {
-        transformStack.top() = glm::translate(transformStack.top(), translation);
-        transformStack.top() = glm::rotate(transformStack.top(), rotation.x, glm::vec3(1, 0, 0));
-        transformStack.top() = glm::rotate(transformStack.top(), rotation.y, glm::vec3(0, 1, 0));
-        transformStack.top() = glm::rotate(transformStack.top(), rotation.z, glm::vec3(0, 0, 1));
-        transformStack.top() = glm::scale(transformStack.top(), scale);
-        glUniformMatrix4fv(glGetUniformLocation(surface_shader, "model"), 1, GL_FALSE, &transformStack.top()[0][0]);
-        glm::mat3 normal_matrix = glm::transpose(glm::inverse(glm::mat3(camera.view * transformStack.top())));
-        glUniformMatrix3fv(glGetUniformLocation(surface_shader, "normal_matrix"), 1, GL_FALSE, value_ptr(normal_matrix));
-        glUniformMatrix4fv(glGetUniformLocation(surface_shader, "view"), 1, GL_FALSE, &camera.view[0][0]);
-        glUniformMatrix4fv(glGetUniformLocation(surface_shader, "projection"), 1, GL_FALSE, &camera.projection[0][0]);
-    }
-    InstancedCannonMesh.Dispatch();
     transformStack.pop();
     
     glUniform1fv(glGetUniformLocation(surface_shader, "light_intensity"), 1, &light_intensity);
