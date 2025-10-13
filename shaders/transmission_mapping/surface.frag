@@ -86,6 +86,49 @@ float ShadowCalculation(in sampler2D shadowMapRef, in vec4 fragPosLightSpace, in
     return shadowing;
 }
 
+float OpaqueShadowCalculation(in sampler2D lightDepthMap, in vec4 fragPosLightSpace, in float dotNL, in vec3 L)
+{
+    float shadowing = 0.0f;
+
+    // perform perspective divide - Helps to support ortho and perspective projections.
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords = projCoords * 0.5 + 0.5;  // transform to [0,1] range
+
+    // get closest depth value from light's perspective (using [0,1] range fragPosLight as coords)
+    float closestDepth = texture(lightDepthMap, projCoords.xy).r;
+
+    // get depth of current fragment from light's perspective
+    float currentDepth = projCoords.z;
+
+    // calculate bias (based on depth map resolution and slope)
+    float bias = max(0.001 * (1.0 - dotNL), 0.0001);
+
+    // check whether current frag pos is in shadow
+    // float shadow = currentDepth - bias > closestDepth  ? 1.0 : 0.0;
+    // PCF
+    vec2 texelSize = 1.0 / textureSize(lightDepthMap, 0);
+    const float pcf_half_size = floor(pcf_kernel_width/2.0);
+
+    // world distance from fragment to light
+    float fragDist = length(LightPos - PIXEL_POSITION.xyz);
+
+    const float maxShadowDistance = 2000.0f; // tweak for your scene
+    float lightDistance = distance(PIXEL_POSITION.xyz, L);
+    float distance_lerp = clamp(fragDist / maxShadowDistance, 0.0, 1.0);
+
+    // dynamic kernel radius: 1 near, pcf_half_size far
+    float size = mix(1.0, pcf_half_size, distance_lerp);
+
+    shadowing += currentDepth - bias > closestDepth  ? 1.0 : 0.0;
+
+    if (projCoords.z > 1.0f)
+    {
+        return 0.0f;
+    }
+
+    return shadowing;
+}
+
 vec3 TransmissiveCalculation(in sampler2D transmissionMapRef, in sampler2D shadowMapRef , in vec4 fragPosLightSpace, in float dotNL, in vec3 L)
 {
     vec3 result = vec3(0.0f);
@@ -133,7 +176,7 @@ void main()
     vec3 ambient_colour = TranslucentColour.rgb * vec3(0.3);
 
     float depthShadow = ShadowCalculation(ShadowMap, PIXEL_POSITION_LIGHT_SPACE, dotNL, L);
-    float opaqueShadow = ShadowCalculation(LightDepthMap, PIXEL_POSITION_LIGHT_SPACE, dotNL, L);
+    float opaqueShadow = OpaqueShadowCalculation(LightDepthMap, PIXEL_POSITION_LIGHT_SPACE, dotNL, L);
     vec3 light = TransmissiveCalculation(TransmissionMap, ShadowMap, PIXEL_POSITION_LIGHT_SPACE, dotNL, L);
     vec3 projectedLight = saturate(light * (vec3(1.0) - saturate(vec3(depthShadow * opaqueShadow))));
     

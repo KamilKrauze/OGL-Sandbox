@@ -53,7 +53,7 @@ void Texture::CreateTextureUnit(const char* fp, TextureSpec spec)
     int width, height, channels;
     void* rawData = LoadImageFile(fp, spec.type, width, height, channels);
 
-    uint32_t mipLevels = spec.generateMips ? (int)std::floor(std::log2(pow(std::max(width, height), 0.75f))) + 1 : 1;
+    uint32_t mipLevels = spec.generateMips ? (int)std::floor(std::log2(pow(std::max(width, height), 0.65f))) + 1 : 1;
     if (rawData)
     {
         LOG_INFO("Loaded file '%s' {%d, %d} & Channels: %d", fp+'\n', width, height, channels);
