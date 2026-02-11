@@ -18,3 +18,4 @@ Currently covered:
 - Usage of OpenGL DSA (direct state access) functions to reduce CPU overhead.
 - Basic deferred rendering pipeline using the GBuffer and having samplable depth.
 - Shadow mapping with distance-based scaling PCF sampling
+- Light transmission mapping with colour absorption behaviour.
