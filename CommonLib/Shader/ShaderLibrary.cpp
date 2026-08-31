@@ -1,4 +1,4 @@
-#include "ShaderBuilder.hpp"
+#include "ShaderLibrary.hpp"
 
 #include <fstream>
 #include <iostream>
@@ -23,7 +23,7 @@ static std::string readFile(const char* filePath)
 	return content;
 }
 
-GLuint ShaderBuilder::Load(const char* vertex_path, const char* fragment_path)
+GLuint ShaderLibrary::Load(const char* vertex_path, const char* fragment_path)
 {
 	GLuint vertShader, fragShader;
 
@@ -58,7 +58,7 @@ GLuint ShaderBuilder::Load(const char* vertex_path, const char* fragment_path)
 	return program;
 }
 
-GLuint ShaderBuilder::Build(GLenum eShaderType, const std::string& shaderText)
+GLuint ShaderLibrary::Build(GLenum eShaderType, const std::string& shaderText)
 {
 	GLuint shader = glCreateShader(eShaderType);
 	const char* strFileData = shaderText.c_str();
@@ -96,7 +96,7 @@ GLuint ShaderBuilder::Build(GLenum eShaderType, const std::string& shaderText)
 	return shader;
 }
 
-GLuint ShaderBuilder::BuildCompute(const char* comp_shader_fp)
+GLuint ShaderLibrary::BuildCompute(const char* comp_shader_fp)
 {
 	unsigned int shaderID = 0;
 
@@ -141,12 +141,16 @@ GLuint ShaderBuilder::BuildCompute(const char* comp_shader_fp)
 		glGetShaderInfoLog(shaderID, infoLogLength, NULL, strInfoLog);
 		LOG_ERROR("[Linker/COMPUTE] - %s", strInfoLog);
 	}
+	else
+	{
+		LOG_SUCCESS("[Linker/COMPUTE] - {%s} linked successfully", comp_shader_fp);
+	}
 
 	glDeleteShader(shaderID);
 	return programID;
 }
 
-GLuint ShaderBuilder::BuildShaderProgram(std::string vertShaderStr, std::string fragShaderStr)
+GLuint ShaderLibrary::BuildShaderProgram(std::string vertShaderStr, std::string fragShaderStr)
 {
 	GLuint vertShader, fragShader;
 	GLint result = GL_FALSE;
@@ -177,7 +181,7 @@ GLuint ShaderBuilder::BuildShaderProgram(std::string vertShaderStr, std::string 
 
 		GLchar* strInfoLog = new GLchar[infoLogLength + 1];
 		glGetProgramInfoLog(program, infoLogLength, NULL, strInfoLog);
-		std::cerr << "Linker error: " << strInfoLog << std::endl;
+		LOG_ERROR("[Program/Linker] - %s", strInfoLog);
 
 		delete[] strInfoLog;
 		throw std::runtime_error("Shader could not be linked.");
@@ -188,3 +192,72 @@ GLuint ShaderBuilder::BuildShaderProgram(std::string vertShaderStr, std::string 
 
 	return program;
 }
+
+ShaderBuilder::ShaderBuilder()
+{
+	for(auto& module : modules)
+	{
+		module = {};
+	}
+}
+
+ShaderBuilder::~ShaderBuilder()
+{
+	for(auto& module : modules)
+	{
+		glDeleteShader(module.shaderID);
+	}
+}
+
+const ShaderBuilder::ShaderModule& ShaderBuilder::Load(
+	std::string_view filepath, ShaderType shaderType)
+{
+	
+	return {};
+}
+
+uint32_t ShaderBuilder::Compile() const
+{
+	uint32_t program = glCreateProgram();
+	for (auto& module : modules)
+	{
+		if (module.shaderID != 0)
+		{
+			glAttachShader(program, module.shaderID);
+		}
+	}
+	glLinkProgram(program);
+
+	GLint status;
+	glGetProgramiv(program, GL_LINK_STATUS, &status);
+	if (status == GL_FALSE)
+	{
+
+		GLint infoLogLength;
+		glGetProgramiv(program, GL_INFO_LOG_LENGTH, &infoLogLength);
+
+		GLchar* strInfoLog = new GLchar[infoLogLength + 1];
+		glGetProgramInfoLog(program, infoLogLength, NULL, strInfoLog);
+		LOG_ERROR("[Program/Linker] - %s", strInfoLog);
+		
+		delete[] strInfoLog;
+		throw std::runtime_error("Shader could not be linked.");
+	}
+	
+	return program;
+}
+
+std::string ShaderBuilder::readShaderFile(const char* filePath)
+{
+	auto size = std::filesystem::file_size(filePath);
+	std::string content(size, '\0');
+	std::ifstream fileStream(filePath, std::ios::in);
+	if (!fileStream.is_open()) {
+		LOG_ERROR("[ShaderBuilder/IO] - Failed to open file %s", filePath);
+		return "";
+	}
+	fileStream.read(&content[0], size);
+	fileStream.close();
+	return content;
+}
+

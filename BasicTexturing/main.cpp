@@ -16,7 +16,7 @@
 #include "stb/stb_image.h"
 
 #include "Callbacks/GLFWCallbacks.hpp"
-#include "Shader/ShaderBuilder.hpp"
+#include "Shader/ShaderLibrary.hpp"
 #include "Renderer/RendererConstants.hpp"
 #include "Renderer/RendererUtils.hpp"
 #include "Logger.hpp"
@@ -109,7 +109,7 @@ static void init()
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
 
-    program = ShaderBuilder::Load("../shaders/texturing_example.vert","../shaders/texturing_example.frag");
+    program = ShaderLibrary::Load("../shaders/texturing_example.vert","../shaders/texturing_example.frag");
     
     Buffers::Vertex::CreateVertexBufferObj<glm::vec4>(posBO, 1, vertPos, GL_STATIC_DRAW);
     Buffers::Vertex::CreateVertexBufferObj<glm::vec4>(colourBO, 1, colours, GL_STATIC_DRAW);

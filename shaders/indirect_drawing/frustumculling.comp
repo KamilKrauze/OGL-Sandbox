@@ -1,0 +1,220 @@
+﻿#version 460 core
+
+layout(local_size_x = 64) in;
+
+struct Object
+{
+    mat4 model;
+    vec4 sphere;
+};
+
+struct DrawCommand
+{
+    uint count;
+    uint instanceCount;
+    uint firstIndex;
+    uint baseVertex;
+    uint baseInstance;
+};
+
+layout(std430, binding = 0) readonly buffer Objects
+{
+    Object objects[];
+};
+
+layout(std430, binding = 1) buffer Commands
+{
+    DrawCommand commands[];
+};
+
+// commands[0].instanceCount is used as the visible-object counter.
+// commands[1...] contain actual indirect commands.
+
+layout(std430, binding = 2) buffer Counter
+{
+    uint visibleCount;
+};
+
+uniform mat4 viewProjection;
+uniform uint objectCount;
+uniform uint indexCount;
+
+// ------------------------------------------------------------
+// Normalize a frustum plane.
+// Plane equation:
+//
+// dot(plane.xyz, position) + plane.w = 0
+// ------------------------------------------------------------
+
+vec4 normalizePlane(vec4 plane)
+{
+    float length = length(plane.xyz);
+
+    if (length > 0.0)
+    {
+        return plane / length;
+    }
+
+    return plane;
+}
+
+
+// Transform a world-space sphere against the six clip planes.
+//
+// Instead of explicitly extracting planes, transform the sphere center
+// into clip space and compare against the homogeneous clip volume.
+bool sphereInsideFrustum(
+    vec3 center,
+    float radius)
+{
+/*
+        GLSL matrices are column-major.
+
+        Explicitly reconstruct the rows of the view-projection
+        matrix.
+    */
+
+    vec4 row0 = vec4(
+    viewProjection[0][0],
+    viewProjection[1][0],
+    viewProjection[2][0],
+    viewProjection[3][0]);
+
+    vec4 row1 = vec4(
+    viewProjection[0][1],
+    viewProjection[1][1],
+    viewProjection[2][1],
+    viewProjection[3][1]);
+
+    vec4 row2 = vec4(
+    viewProjection[0][2],
+    viewProjection[1][2],
+    viewProjection[2][2],
+    viewProjection[3][2]);
+
+    vec4 row3 = vec4(
+    viewProjection[0][3],
+    viewProjection[1][3],
+    viewProjection[2][3],
+    viewProjection[3][3]);
+
+
+    // --------------------------------------------------------
+    // Extract frustum planes.
+    //
+    // OpenGL clip-space:
+    //
+    // -w <= x <= w
+    // -w <= y <= w
+    // -w <= z <= w
+    // --------------------------------------------------------
+
+    vec4 leftPlane   = normalizePlane(row3 + row0);
+    vec4 rightPlane  = normalizePlane(row3 - row0);
+
+    vec4 bottomPlane = normalizePlane(row3 + row1);
+    vec4 topPlane    = normalizePlane(row3 - row1);
+
+    vec4 nearPlane   = normalizePlane(row3 + row2);
+    vec4 farPlane    = normalizePlane(row3 - row2);
+
+
+    // --------------------------------------------------------
+    // Test sphere against every plane.
+    //
+    // If the sphere is completely outside one plane,
+    // the object is not visible.
+    // --------------------------------------------------------
+
+    float distance;
+
+    distance =
+    dot(leftPlane.xyz, center) +
+    leftPlane.w;
+
+    if (distance < -radius)
+        return false;
+
+
+    distance =
+    dot(rightPlane.xyz, center) +
+    rightPlane.w;
+
+    if (distance < -radius)
+        return false;
+
+
+    distance =
+    dot(bottomPlane.xyz, center) +
+    bottomPlane.w;
+
+    if (distance < -radius)
+        return false;
+
+
+    distance =
+    dot(topPlane.xyz, center) +
+    topPlane.w;
+
+    if (distance < -radius)
+        return false;
+
+
+    // Explicit near-plane test.
+    distance =
+    dot(nearPlane.xyz, center) +
+    nearPlane.w;
+
+    if (distance < -radius)
+        return false;
+
+
+    // Explicit far-plane test.
+    distance =
+    dot(farPlane.xyz, center) +
+    farPlane.w;
+
+    if (distance < -radius)
+        return false;
+
+
+    return true;
+}
+
+void main()
+{
+    uint objectID = gl_GlobalInvocationID.x;
+
+    if (objectID >= objectCount)
+    return;
+
+    Object object = objects[objectID];
+
+    vec3 localCenter = object.sphere.xyz;
+    float localRadius = object.sphere.w;
+
+    // Transform bounding sphere into world space.
+    vec3 worldCenter =
+    (object.model * vec4(localCenter, 1.0)).xyz;
+
+    // Conservative scale for a non-uniform transform.
+    float scaleX = length(object.model[0].xyz);
+    float scaleY = length(object.model[1].xyz);
+    float scaleZ = length(object.model[2].xyz);
+
+    float worldRadius =
+    localRadius * max(scaleX, max(scaleY, scaleZ));
+
+    if (!sphereInsideFrustum(worldCenter, worldRadius))
+    return;
+
+    // Allocate an indirect command slot.
+    uint dst = atomicAdd(visibleCount, 1);
+
+    // The cube has 36 indices.
+    commands[dst].count         = indexCount;
+    commands[dst].instanceCount = 1;
+    commands[dst].firstIndex    = 0;
+    commands[dst].baseVertex    = 0;
+    commands[dst].baseInstance  = objectID;
+}

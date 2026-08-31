@@ -17,7 +17,7 @@
 
 #include "Callbacks/OGLErrorCallbacks.hpp"
 #include "Callbacks/GLFWCallbacks.hpp"
-#include "Shader/ShaderBuilder.hpp"
+#include "Shader/ShaderLibrary.hpp"
 #include "Renderer/RendererUtils.hpp"
 #include "Logger.hpp"
 #include "GfxBuffers/TransmissionBuffer.h"
@@ -78,16 +78,16 @@ static void init()
         TextureSpec(Repeat, Linear, Linear
             , GL_RGB32F, GL_RGB, GL_FLOAT, false));
 
-    transmission_buffer.shaderProgram = ShaderBuilder::Load(
+    transmission_buffer.shaderProgram = ShaderLibrary::Load(
         "../shaders/transmission_mapping/transmission_mapper.vert",
         "../shaders/transmission_mapping/transmission_mapper.frag"
     );
     
-    surface_shader = ShaderBuilder::Load(
+    surface_shader = ShaderLibrary::Load(
         "../shaders/transmission_mapping/surface.vert",
         "../shaders/transmission_mapping/surface.frag"
         );
-    sky_shader = ShaderBuilder::Load("../shaders/env_sky.vert","../shaders/env_sky.frag");
+    sky_shader = ShaderLibrary::Load("../shaders/env_sky.vert","../shaders/env_sky.frag");
 
     transmission_buffer.Create();
     

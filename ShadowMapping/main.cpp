@@ -17,7 +17,7 @@
 
 #include "Callbacks/OGLErrorCallbacks.hpp"
 #include "Callbacks/GLFWCallbacks.hpp"
-#include "Shader/ShaderBuilder.hpp"
+#include "Shader/ShaderLibrary.hpp"
 #include "Renderer/RendererUtils.hpp"
 #include "Logger.hpp"
 #include "Loader/MeshLoaders.hpp"
@@ -97,9 +97,9 @@ static void init()
         TextureSpec(Repeat, Linear, Linear
             , GL_RGB32F, GL_RGB, GL_FLOAT, false));
     
-    surface_shader = ShaderBuilder::Load("../shaders/shadow_mapping/surface.vert","../shaders/shadow_mapping/surface.frag");
-    shadow_shader = ShaderBuilder::Load("../shaders/shadow_mapping/shadow_mapper.vert","../shaders/shadow_mapping/shadow_mapper.frag");
-    sky_shader = ShaderBuilder::Load("../shaders/env_sky.vert","../shaders/env_sky.frag");
+    surface_shader = ShaderLibrary::Load("../shaders/shadow_mapping/surface.vert","../shaders/shadow_mapping/surface.frag");
+    shadow_shader = ShaderLibrary::Load("../shaders/shadow_mapping/shadow_mapper.vert","../shaders/shadow_mapping/shadow_mapper.frag");
+    sky_shader = ShaderLibrary::Load("../shaders/env_sky.vert","../shaders/env_sky.frag");
     
     transformStack.push(glm::mat4(1.0));
 

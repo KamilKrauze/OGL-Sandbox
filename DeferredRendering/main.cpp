@@ -17,7 +17,7 @@
 
 #include "Callbacks/OGLErrorCallbacks.hpp"
 #include "Callbacks/GLFWCallbacks.hpp"
-#include "Shader/ShaderBuilder.hpp"
+#include "Shader/ShaderLibrary.hpp"
 #include "Renderer/RendererUtils.hpp"
 #include "Logger.hpp"
 #include "GfxBuffers/GBuffer.h"
@@ -107,9 +107,9 @@ static void init()
         TextureSpec(Repeat, Trilinear, Linear,
             GL_RGB32F, GL_RGB, GL_FLOAT, true));
     
-    program = ShaderBuilder::Load("../shaders/deferred_rendering/deferred_shader.vert","../shaders/deferred_rendering/deferred_shader.frag");
-    gbuffer.shader = ShaderBuilder::Load("../shaders/deferred_rendering/geometry_shader.vert","../shaders/deferred_rendering/geometry_shader.frag");
-    sky_shader = ShaderBuilder::Load("../shaders/env_sky.vert","../shaders/env_sky.frag");
+    program = ShaderLibrary::Load("../shaders/deferred_rendering/deferred_shader.vert","../shaders/deferred_rendering/deferred_shader.frag");
+    gbuffer.shader = ShaderLibrary::Load("../shaders/deferred_rendering/geometry_shader.vert","../shaders/deferred_rendering/geometry_shader.frag");
+    sky_shader = ShaderLibrary::Load("../shaders/env_sky.vert","../shaders/env_sky.frag");
     
     quadMesh.vertices = quadVertices;
     quadMesh.texCoords = quadUVs;

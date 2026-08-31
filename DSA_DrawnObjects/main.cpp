@@ -18,7 +18,7 @@
 #include "stb/stb_image.h"
 
 #include "Callbacks/GLFWCallbacks.hpp"
-#include "Shader/ShaderBuilder.hpp"
+#include "Shader/ShaderLibrary.hpp"
 #include "Renderer/RendererConstants.hpp"
 #include "Renderer/RendererUtils.hpp"
 #include "Logger.hpp"
@@ -50,7 +50,7 @@ static void init()
     MeshLoaders::Static::ImportOBJ(data2, std::string_view("../meshes/Monkey.obj"));
     SurfaceMesh = std::move(data1);
     mesh2 = std::move(data2);
-    program = ShaderBuilder::Load("../shaders/mesh_dsa_draw.vert","../shaders/mesh_dsa_draw.frag");
+    program = ShaderLibrary::Load("../shaders/mesh_dsa_draw.vert","../shaders/mesh_dsa_draw.frag");
     
     SurfaceMesh.Build();
     mesh2.Build();

@@ -17,7 +17,7 @@
 
 #include "Callbacks/OGLErrorCallbacks.hpp"
 #include "Callbacks/GLFWCallbacks.hpp"
-#include "Shader/ShaderBuilder.hpp"
+#include "Shader/ShaderLibrary.hpp"
 #include "Renderer/RendererUtils.hpp"
 #include "Logger.hpp"
 #include "Loader/MeshLoaders.hpp"
@@ -78,8 +78,8 @@ static void init()
     ENV_Texture.CreateTextureUnit("../textures/env/hdri/sunflowers_puresky_4k.hdr",
         TextureSpec(Repeat, Linear, Linear, GL_RGB32F, GL_RGB, GL_FLOAT, false));
     
-   surface_shader = ShaderBuilder::Load("../shaders/normal_map.vert","../shaders/normal_map.frag");
-   sky_shader = ShaderBuilder::Load("../shaders/env_sky.vert","../shaders/env_sky.frag");
+   surface_shader = ShaderLibrary::Load("../shaders/normal_map.vert","../shaders/normal_map.frag");
+   sky_shader = ShaderLibrary::Load("../shaders/env_sky.vert","../shaders/env_sky.frag");
     
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);

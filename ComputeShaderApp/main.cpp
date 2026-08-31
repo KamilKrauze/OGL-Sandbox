@@ -12,7 +12,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include "Callbacks/GLFWCallbacks.hpp"
-#include "Shader/ShaderBuilder.hpp"
+#include "Shader/ShaderLibrary.hpp"
 #include "Renderer/RendererConstants.hpp"
 #include "Renderer/RendererUtils.hpp"
 #include "Logger.hpp"
@@ -71,8 +71,8 @@ static void init()
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
 
-    program = ShaderBuilder::Load("../shaders/simple_comp.vert","../shaders/simple_comp.frag");
-    compute_program = ShaderBuilder::BuildCompute("../shaders/simple_comp.comp");
+    program = ShaderLibrary::Load("../shaders/simple_comp.vert","../shaders/simple_comp.frag");
+    compute_program = ShaderLibrary::BuildCompute("../shaders/simple_comp.comp");
     
     Buffers::Vertex::CreateVertexBufferObj<glm::vec3>(vertexBufferObj, 1, verts, GL_STATIC_DRAW);
     Buffers::Vertex::CreateVertexBufferObj<glm::vec2>(uvBO, 1, uv_coords, GL_STATIC_DRAW);
