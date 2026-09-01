@@ -186,6 +186,7 @@ static void draw()
 {
     unsigned int zero = 0;
 
+    // Reset GPU-visible object counter.
     glBindBuffer(
         GL_SHADER_STORAGE_BUFFER,
         counterBuffer);
@@ -195,6 +196,10 @@ static void draw()
         0,
         sizeof(zero),
         &zero);
+
+    // -------------------------------------------------
+    // Compute culling
+    // -------------------------------------------------
     
     glUseProgram(cullProgram);
 
@@ -248,18 +253,20 @@ static void draw()
     // This readback is included because it makes the example easy
     // to understand.
     //
-
+#if defined(DEBUG)
+    
     unsigned int visibleCount = 0;
-
+    
     glBindBuffer(
         GL_SHADER_STORAGE_BUFFER,
         counterBuffer);
-
+    
     glGetBufferSubData(
         GL_SHADER_STORAGE_BUFFER,
         0,
         sizeof(visibleCount),
         &visibleCount);
+#endif
 
     // ---------------------------------------------------------------------
     // Render visible objects
@@ -284,14 +291,25 @@ static void draw()
         GL_DRAW_INDIRECT_BUFFER,
         indirectBuffer);
 
-    glMultiDrawElementsIndirect(
-        GL_TRIANGLES,
-        GL_UNSIGNED_INT,
-        nullptr,
-        visibleCount,
-        sizeof(DrawElementsIndirectCommand));
+    glBindBuffer(
+        GL_PARAMETER_BUFFER,
+        counterBuffer);
+
+#if defined(DEBUG) // Replace with this  to see the remaining after culling.
     
-    std::printf("\r%u/%d", visibleCount, OBJECT_COUNT);
+    glMultiDrawElementsIndirect(
+         GL_TRIANGLES,
+         GL_UNSIGNED_INT,
+         nullptr,
+         visibleCount,
+         sizeof(DrawElementsIndirectCommand));
+
+    printf("\rCulled objects down to: %u/%d", visibleCount, OBJECT_COUNT);
+    
+#elif defined(NDEBUG)
+    glMultiDrawElementsIndirectCount(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, 0, OBJECT_COUNT, sizeof(DrawElementsIndirectCommand));
+#endif
+
 }
 
 int main()

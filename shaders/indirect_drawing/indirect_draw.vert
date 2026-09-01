@@ -3,6 +3,7 @@
 layout(location=0) in vec3 VERT_POS;
 layout(location=1) in vec4 VERT_COLOUR;
 layout(location=2) in vec3 VERT_NORMAL;
+
 struct Object
 {
     mat4 model;
@@ -16,13 +17,12 @@ layout(std430, binding = 0) readonly buffer Objects
 
 uniform mat4 viewProjection;
 
-flat out uint objectID;
 out vec3 FRAG_NORMAL;
 
 void main()
 {
     // baseInstance identifies which object produced this draw.
-    objectID = gl_BaseInstance;
+    uint objectID = gl_BaseInstance;
 
     gl_Position =
     viewProjection *
