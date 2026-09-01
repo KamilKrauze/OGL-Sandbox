@@ -15,14 +15,21 @@ layout(std430, binding = 0) readonly buffer Objects
     Object objects[];
 };
 
+layout(std430, binding = 1) readonly buffer VisibleObjects
+{
+    uint visibleObjectIDs[];
+};
+
 uniform mat4 viewProjection;
 
 out vec3 FRAG_NORMAL;
 
 void main()
 {
+    uint visibleIndex = uint(gl_InstanceID);
+    
     // baseInstance identifies which object produced this draw.
-    uint objectID = gl_BaseInstance;
+    uint objectID = visibleObjectIDs[visibleIndex];
 
     gl_Position =
     viewProjection *

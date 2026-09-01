@@ -26,10 +26,12 @@ static GLFWwindow* window;
 
 GLuint program = 0;
 GLuint cullProgram = 0;
+GLuint finalizeProgram = 0;
 
 GLuint objectSSBO;
-GLuint indirectBuffer;
+GLuint visibleObjectBuffer;
 GLuint counterBuffer;
+GLuint indirectBuffer;
 
 GLint vpLocation;
 GLint countLocation;
@@ -76,25 +78,26 @@ static void init()
         glm::vec3(0, 0, -1));
     
     VertexData data1{};
-    MeshLoaders::Static::ImportOBJ(data1, std::string_view("../meshes/surface_sphere.obj"));
+    MeshLoaders::Static::ImportOBJ(data1, std::string_view("../meshes/fir_tree.obj"));
     SphereMesh = std::move(data1);
     SphereMesh.Build(true);
     
     program = ShaderLibrary::Load("../shaders/indirect_drawing/indirect_draw.vert","../shaders/indirect_drawing/indirect_draw.frag");
     cullProgram = ShaderLibrary::BuildCompute("../shaders/indirect_drawing/frustumculling.comp");
+    finalizeProgram = ShaderLibrary::BuildCompute("../shaders/indirect_drawing/finalize_indirect.comp");
 
     std::vector<Object> objects;
     objects.reserve(OBJECT_COUNT);
     for (size_t i=0; i < OBJECT_COUNT; ++i)
     {
         float x =
-            float(rand() % 2000 - 1000) * 0.5f;
+            float(rand() % 1000 - 500) * 0.75f;
 
         float y =
-            float(rand() % 2000 - 1000) * 0.5f;
+            float(rand() % 1000 - 500) * 0.5f;
 
         float z =
-            float(rand() % 2000 - 1000) * 0.5f;
+            float(rand() % 1000 - 500) * 0.5f;
 
         Object obj{};
 
@@ -124,23 +127,33 @@ static void init()
         0,
         objectSSBO);
 
-    glGenBuffers(1, &indirectBuffer);
+    // glGenBuffers(1, &indirectBuffer);
+    //
+    // glBindBuffer(
+    //     GL_DRAW_INDIRECT_BUFFER,
+    //     indirectBuffer);
+    //
+    // glBufferData(
+    //     GL_DRAW_INDIRECT_BUFFER,
+    //     OBJECT_COUNT *
+    //         sizeof(DrawElementsIndirectCommand),
+    //     nullptr,
+    //     GL_DYNAMIC_DRAW);
 
-    glBindBuffer(
-        GL_DRAW_INDIRECT_BUFFER,
-        indirectBuffer);
+    glGenBuffers(1, &visibleObjectBuffer);
+    
+    glBindBuffer(GL_DRAW_INDIRECT_BUFFER,
+        visibleObjectBuffer);
 
-    glBufferData(
-        GL_DRAW_INDIRECT_BUFFER,
-        OBJECT_COUNT *
-            sizeof(DrawElementsIndirectCommand),
+    glBufferData(GL_DRAW_INDIRECT_BUFFER,
+        OBJECT_COUNT * sizeof(std::uint32_t),
         nullptr,
         GL_DYNAMIC_DRAW);
 
     glBindBufferBase(
         GL_SHADER_STORAGE_BUFFER,
         1,
-        indirectBuffer);
+        visibleObjectBuffer);
 
 
     glGenBuffers(1, &counterBuffer);
@@ -162,6 +175,41 @@ static void init()
         2,
         counterBuffer);
 
+    DrawElementsIndirectCommand command {};
+    command.count = static_cast<GLuint>(SphereMesh.indices.size());
+    command.instanceCount = 0;
+    command.firstIndex = 0;
+    command.baseVertex = 0;
+    command.baseInstance = 0;
+
+
+    glGenBuffers(
+        1,
+        &indirectBuffer
+    );
+
+    glBindBuffer(
+        GL_DRAW_INDIRECT_BUFFER,
+        indirectBuffer
+    );
+
+    glBufferData(
+        GL_DRAW_INDIRECT_BUFFER,
+        sizeof(DrawElementsIndirectCommand),
+        &command,
+        GL_DYNAMIC_DRAW
+    );
+
+
+    // Bind the SAME buffer as an SSBO for
+    // the finalize compute shader.
+
+    glBindBufferBase(
+        GL_SHADER_STORAGE_BUFFER,
+        3,
+        indirectBuffer
+    );
+    
     vpLocation =
         glGetUniformLocation(
             cullProgram,
@@ -224,7 +272,7 @@ static void draw()
     glBindBufferBase(
         GL_SHADER_STORAGE_BUFFER,
         1,
-        indirectBuffer);
+        visibleObjectBuffer);
 
     glBindBufferBase(
         GL_SHADER_STORAGE_BUFFER,
@@ -240,7 +288,7 @@ static void draw()
     // Make compute writes visible to indirect draw.
     //
     glMemoryBarrier(
-        GL_COMMAND_BARRIER_BIT |
+        // GL_COMMAND_BARRIER_BIT |
         GL_SHADER_STORAGE_BARRIER_BIT);
 
     // ---------------------------------------------------------------------
@@ -268,6 +316,32 @@ static void draw()
         &visibleCount);
 #endif
 
+    // ============================================================
+    // PASS 2:
+    // Write visibleCount into the indirect command
+    // ============================================================
+
+    glUseProgram(
+        finalizeProgram
+    );
+
+
+    glBindBufferBase(
+        GL_SHADER_STORAGE_BUFFER,
+        2,
+        counterBuffer
+    );
+
+    glBindBufferBase(
+        GL_SHADER_STORAGE_BUFFER,
+        3,
+        indirectBuffer
+    );
+
+
+    glDispatchCompute(1, 1, 1);
+    glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
+    
     // ---------------------------------------------------------------------
     // Render visible objects
     // ---------------------------------------------------------------------
@@ -285,29 +359,43 @@ static void draw()
         GL_FALSE,
         glm::value_ptr(viewProjection));
 
+
+    glBindBufferBase(
+        GL_SHADER_STORAGE_BUFFER,
+        0,
+        objectSSBO
+    );
+
+    glBindBufferBase(
+        GL_SHADER_STORAGE_BUFFER,
+        1,
+        visibleObjectBuffer
+    );
+
     SphereMesh.Bind();
 
     glBindBuffer(
         GL_DRAW_INDIRECT_BUFFER,
-        indirectBuffer);
-
-    glBindBuffer(
-        GL_PARAMETER_BUFFER,
-        counterBuffer);
-
-#if defined(DEBUG) // Replace with this  to see the remaining after culling.
+        indirectBuffer
+    );
     
-    glMultiDrawElementsIndirect(
-         GL_TRIANGLES,
-         GL_UNSIGNED_INT,
-         nullptr,
-         visibleCount,
-         sizeof(DrawElementsIndirectCommand));
+#if defined(DEBUG) // Replace with this  to see the remaining after culling.
+
+    glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
+
+    
+    // glMultiDrawElementsIndirect(
+    //      GL_TRIANGLES,
+    //      GL_UNSIGNED_INT,
+    //      nullptr,
+    //      visibleCount,
+    //      sizeof(DrawElementsIndirectCommand));
 
     printf("\rCulled objects down to: %u/%d", visibleCount, OBJECT_COUNT);
     
 #elif defined(NDEBUG)
-    glMultiDrawElementsIndirectCount(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, 0, OBJECT_COUNT, sizeof(DrawElementsIndirectCommand));
+    glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
+    // glMultiDrawElementsIndirectCount(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, 0, OBJECT_COUNT, sizeof(DrawElementsIndirectCommand));
 #endif
 
 }

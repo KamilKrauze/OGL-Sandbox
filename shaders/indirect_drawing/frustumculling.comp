@@ -22,13 +22,18 @@ layout(std430, binding = 0) readonly buffer Objects
     Object objects[];
 };
 
-layout(std430, binding = 1) buffer Commands
-{
-    DrawCommand commands[];
-};
+//layout(std430, binding = 1) buffer Commands
+//{
+//    DrawCommand commands[];
+//};
 
 // commands[0].instanceCount is used as the visible-object counter.
 // commands[1...] contain actual indirect commands.
+
+layout (std430, binding = 1) buffer VisibleObjects
+{
+    uint visibleObjectIDs[];
+};
 
 layout(std430, binding = 2) buffer Counter
 {
@@ -206,15 +211,17 @@ void main()
     localRadius * max(scaleX, max(scaleY, scaleZ));
 
     if (!sphereInsideFrustum(worldCenter, worldRadius))
-    return;
+        return;
 
     // Allocate an indirect command slot.
     uint dst = atomicAdd(visibleCount, 1);
 
+    visibleObjectIDs[dst] = objectID;
+    
     // The cube has 36 indices.
-    commands[dst].count         = indexCount;
-    commands[dst].instanceCount = 1;
-    commands[dst].firstIndex    = 0;
-    commands[dst].baseVertex    = 0;
-    commands[dst].baseInstance  = objectID;
+//    commands[dst].count         = indexCount;
+//    commands[dst].instanceCount = visibleCount;
+//    commands[dst].firstIndex    = 0;
+//    commands[dst].baseVertex    = 0;
+//    commands[dst].baseInstance  = objectID;
 }
