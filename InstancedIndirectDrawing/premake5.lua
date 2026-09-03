@@ -1,4 +1,4 @@
-project "IndirectDrawing"
+project "InstancedIndirectDrawing"
     location "."
     kind "ConsoleApp"
     language "C++"
@@ -15,7 +15,6 @@ project "IndirectDrawing"
         "./%{wks.location}/thirdparty/glad/glad.c",
         
         shader_files,
-
     }
 
     includedirs
