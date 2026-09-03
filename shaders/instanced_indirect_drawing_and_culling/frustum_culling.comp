@@ -7,28 +7,15 @@ struct Object
     mat4 model;
     vec4 sphere;
 };
-
-struct DrawCommand
-{
-    uint count;
-    uint instanceCount;
-    uint firstIndex;
-    uint baseVertex;
-    uint baseInstance;
-};
-
 layout(std430, binding = 0) readonly buffer Objects
 {
     Object objects[];
 };
 
-layout(std430, binding = 1) buffer Commands
+layout (std430, binding = 1) buffer VisibleObjects
 {
-    DrawCommand commands[];
+    uint visibleObjectIDs[];
 };
-
-// commands[0].instanceCount is used as the visible-object counter.
-// commands[1...] contain actual indirect commands.
 
 layout(std430, binding = 2) buffer Counter
 {
@@ -133,7 +120,7 @@ bool sphereInsideFrustum(
     leftPlane.w;
 
     if (distance < -radius)
-        return false;
+    return false;
 
 
     distance =
@@ -141,7 +128,7 @@ bool sphereInsideFrustum(
     rightPlane.w;
 
     if (distance < -radius)
-        return false;
+    return false;
 
 
     distance =
@@ -149,7 +136,7 @@ bool sphereInsideFrustum(
     bottomPlane.w;
 
     if (distance < -radius)
-        return false;
+    return false;
 
 
     distance =
@@ -157,7 +144,7 @@ bool sphereInsideFrustum(
     topPlane.w;
 
     if (distance < -radius)
-        return false;
+    return false;
 
 
     // Explicit near-plane test.
@@ -166,7 +153,7 @@ bool sphereInsideFrustum(
     nearPlane.w;
 
     if (distance < -radius)
-        return false;
+    return false;
 
 
     // Explicit far-plane test.
@@ -175,7 +162,7 @@ bool sphereInsideFrustum(
     farPlane.w;
 
     if (distance < -radius)
-        return false;
+    return false;
 
 
     return true;
@@ -186,7 +173,7 @@ void main()
     uint objectID = gl_GlobalInvocationID.x;
 
     if (objectID >= objectCount)
-    return;
+        return;
 
     Object object = objects[objectID];
 
@@ -211,10 +198,5 @@ void main()
     // Allocate an indirect command slot.
     uint dst = atomicAdd(visibleCount, 1);
 
-    // The cube has 36 indices.
-    commands[dst].count         = indexCount;
-    commands[dst].instanceCount = 1;
-    commands[dst].firstIndex    = 0;
-    commands[dst].baseVertex    = 0;
-    commands[dst].baseInstance  = objectID;
+    visibleObjectIDs[dst] = objectID;
 }

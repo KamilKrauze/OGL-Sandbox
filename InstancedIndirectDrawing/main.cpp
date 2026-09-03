@@ -26,7 +26,7 @@ static GLFWwindow* window;
 
 GLuint program = 0;
 GLuint cullProgram = 0;
-GLuint finalizeProgram = 0;
+GLuint indirectCmdProgram = 0;
 
 GLuint objectSSBO;
 GLuint visibleObjectBuffer;
@@ -82,9 +82,9 @@ static void init()
     SphereMesh = std::move(data1);
     SphereMesh.Build(true);
     
-    program = ShaderLibrary::Load("../shaders/indirect_drawing/indirect_draw.vert","../shaders/indirect_drawing/indirect_draw.frag");
-    cullProgram = ShaderLibrary::BuildCompute("../shaders/indirect_drawing/frustumculling.comp");
-    finalizeProgram = ShaderLibrary::BuildCompute("../shaders/indirect_drawing/finalize_indirect.comp");
+    program = ShaderLibrary::Load("../shaders/instanced_indirect_drawing_and_culling/indirect_draw.vert","../shaders/instanced_indirect_drawing_and_culling/indirect_draw.frag");
+    cullProgram = ShaderLibrary::BuildCompute("../shaders/instanced_indirect_drawing_and_culling/frustum_culling.comp");
+    indirectCmdProgram = ShaderLibrary::BuildCompute("../shaders/instanced_indirect_drawing_and_culling/create_draw_cmd.comp");
 
     std::vector<Object> objects;
     objects.reserve(OBJECT_COUNT);
@@ -126,19 +126,6 @@ static void init()
         GL_SHADER_STORAGE_BUFFER,
         0,
         objectSSBO);
-
-    // glGenBuffers(1, &indirectBuffer);
-    //
-    // glBindBuffer(
-    //     GL_DRAW_INDIRECT_BUFFER,
-    //     indirectBuffer);
-    //
-    // glBufferData(
-    //     GL_DRAW_INDIRECT_BUFFER,
-    //     OBJECT_COUNT *
-    //         sizeof(DrawElementsIndirectCommand),
-    //     nullptr,
-    //     GL_DYNAMIC_DRAW);
 
     glGenBuffers(1, &visibleObjectBuffer);
     
@@ -287,9 +274,7 @@ static void draw()
     //
     // Make compute writes visible to indirect draw.
     //
-    glMemoryBarrier(
-        // GL_COMMAND_BARRIER_BIT |
-        GL_SHADER_STORAGE_BARRIER_BIT);
+    glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
 
     // ---------------------------------------------------------------------
     // Read number of visible objects
@@ -322,9 +307,8 @@ static void draw()
     // ============================================================
 
     glUseProgram(
-        finalizeProgram
+        indirectCmdProgram
     );
-
 
     glBindBufferBase(
         GL_SHADER_STORAGE_BUFFER,
@@ -338,7 +322,6 @@ static void draw()
         indirectBuffer
     );
 
-
     glDispatchCompute(1, 1, 1);
     glMemoryBarrier(GL_COMMAND_BARRIER_BIT | GL_SHADER_STORAGE_BARRIER_BIT);
     
@@ -349,10 +332,13 @@ static void draw()
     glClearColor(0.29f, 0.276f, 0.3f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-    glEnable(GL_DEPTH_TEST);
-
     glUseProgram(program);
 
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glFrontFace(GL_CW);
+    
     glUniformMatrix4fv(
         renderVpLocation,
         1,
@@ -378,24 +364,11 @@ static void draw()
         GL_DRAW_INDIRECT_BUFFER,
         indirectBuffer
     );
-    
+
+    glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
+
 #if defined(DEBUG) // Replace with this  to see the remaining after culling.
-
-    glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
-
-    
-    // glMultiDrawElementsIndirect(
-    //      GL_TRIANGLES,
-    //      GL_UNSIGNED_INT,
-    //      nullptr,
-    //      visibleCount,
-    //      sizeof(DrawElementsIndirectCommand));
-
     printf("\rCulled objects down to: %u/%d", visibleCount, OBJECT_COUNT);
-    
-#elif defined(NDEBUG)
-    glDrawElementsIndirect(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr);
-    // glMultiDrawElementsIndirectCount(GL_TRIANGLES, GL_UNSIGNED_INT, nullptr, 0, OBJECT_COUNT, sizeof(DrawElementsIndirectCommand));
 #endif
 
 }
@@ -407,7 +380,6 @@ int main()
         return EXIT_FAILURE;
     }
     
-    // glfwWindowHint(GLFW_SAMPLES, 0);
     glfwDefaultWindowHints();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
